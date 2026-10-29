@@ -1,0 +1,13 @@
+# SYNTHETIC scenarios. All times are FRACTIONS of the workflow deadline D, so the same
+# scenario stresses short and long workflows alike.
+#
+# background: load on every link = mean + wave*sin(2*pi*t/(period_frac*D) + phase)
+#             + noise (piecewise constant over interval_frac*D), clipped to [0, 0.95].
+background: {mean: 0.2, wave: 0.1, period_frac: 0.5, noise: 0.05, interval_frac: 0.005}
+normal: {events: []}
+congestion:
+  events:
+    - {type: surge, link: [StarLight, ORNL], start_frac: 0.05, end_frac: 0.5, extra_load: 0.7}
+link_failure:
+  events:
+    - {type: down, link: [StarLight, Caltech], start_frac: 0.15, end_frac: 0.75}

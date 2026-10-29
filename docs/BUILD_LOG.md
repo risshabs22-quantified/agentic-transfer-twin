@@ -7,7 +7,7 @@ Every entry says what was built, why, and the commands to verify it.
 
 - [x] Stage 0 — environment, requirements, data, build log
 - [x] Stage 1 — extraction (`att/extract.py`)
-- [ ] Stage 2 — configs + network model (`att/network.py`)
+- [x] Stage 2 — configs + network model (`att/network.py`)
 - [ ] Stage 3 — simulator, planner interface, baselines
 - [ ] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
 - [ ] Stage 5 — tools, MCP server, tool client, stdio demo
@@ -83,4 +83,39 @@ pytest -q
 **How to verify**
 ```bash
 pytest -q tests/test_extract.py
+```
+
+### 2026-10-29 — Stage 2: configs and network model (`att/network.py`)
+
+**Built**
+- `configs/topology.yaml`, `configs/scenarios.yaml` exactly as in CLAUDE.md section 9, with "SYNTHETIC" headers.
+- `configs/experiment.yaml`: sites, source, slack, simulator settings, the four workflows
+  (`data_scale: null` until Stage 4), scenarios, planners, seeds.
+- `att/config.py`: loads the YAML files; supports per-workflow scenario overrides (in case
+  Stage 4 has to move an event for one workflow).
+- `att/network.py`:
+  - `Topology` (networkx graph + link index lookups, path delay, lowest-delay path, k shortest
+    simple paths optionally avoiding links). Links keep their YAML order so per-link loops and
+    per-link random draws are deterministic.
+  - `BackgroundLoad`: one seeded `numpy.random.default_rng(seed)`; draws all per-link phases,
+    then the whole per-link noise table, up front. Load is sampled at the start of each grid
+    cell of width `dt` and held for the cell; noise is constant over `interval_frac * D`.
+  - `timeline()`: scenario events → time-sorted on/off edges (`link_down`/`link_up`,
+    `surge_start`/`surge_end`) at `frac * D`.
+  - `free_capacity_Bps()`: `gbps * 1e9 / 8 * (1 - load)`, or 0 when down.
+- `scripts/show_network.py`: prints free Gbps per link at several fractions of D for each scenario.
+
+**Result** (`python scripts/show_network.py`, 1000genome-8ch, seed 100): free capacity is
+65–95 Gbps on the 100 G links and 255–400 Gbps on the 400 G links in normal; StarLight–ORNL drops
+to ~5 Gbps (the 0.95 load cap) from 0.05 D to 0.5 D in `congestion`; StarLight–Caltech is 0 from
+0.15 D to 0.75 D in `link_failure`. Events switch exactly at their fractions (tested).
+
+Note: on this map the lowest-delay route from CERN to UCSD goes through Caltech (145 ms vs
+147 ms via FNAL), so the `link_failure` event affects every transfer bound for Caltech *and*
+UCSD; while it is down, the only way into {Caltech, UCSD} is the FNAL–UCSD link.
+
+**How to verify**
+```bash
+python scripts/show_network.py
+pytest -q tests/test_network.py
 ```

@@ -1,0 +1,25 @@
+# Experiment settings. FROZEN after Stage 4 tuning (network) and Stage 6 tuning (agents);
+# see docs/BUILD_LOG.md. Change anything here only by re-running everything and logging why.
+
+sites: [Caltech, UCSD, FNAL, ORNL]   # compute sites (task placement is a SYNTHETIC seeded hash)
+source_site: CERN                    # where raw inputs start
+slack: 1.5                           # workflow deadline D = slack x critical path; fixed, never tuned
+
+simulator:
+  steps_per_deadline: 1000           # capacity is re-sampled every dt = D / 1000
+  max_time_frac: 20                  # give up at 20 x D
+  timeout_frac: 0.1                  # a transfer stalled for 0.1 x D fails its attempt
+
+# data_scale multiplies every file size (SYNTHETIC). Chosen by scripts/tune.py in Stage 4.
+workflows:
+  1000genome-2ch: {file: data/raw/1000genome-chameleon-2ch-100k-001.json, role: dev,    data_scale: null}
+  montage-005d:   {file: data/raw/montage-chameleon-2mass-005d-001.json,  role: dev,    data_scale: null}
+  1000genome-8ch: {file: data/raw/1000genome-chameleon-8ch-100k-001.json, role: result, data_scale: null}
+  montage-01d:    {file: data/raw/montage-chameleon-2mass-01d-001.json,   role: result, data_scale: null}
+
+scenarios: [normal, congestion, link_failure]
+planners: [baseline, baseline_reroute, agents]
+
+seeds:
+  tuning: [100, 101, 102, 103, 104]
+  evaluation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

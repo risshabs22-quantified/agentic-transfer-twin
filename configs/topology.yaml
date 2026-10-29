@@ -1,0 +1,11 @@
+# SYNTHETIC network map. Site names are for flavor only; every number below is invented
+# and does not describe any real network.
+sites: [CERN, StarLight, FNAL, Caltech, UCSD, ORNL]
+links:   # undirected; capacity in Gbps, one-way delay in ms
+  - {a: CERN,      b: StarLight, gbps: 400, ms: 90}
+  - {a: StarLight, b: FNAL,      gbps: 400, ms: 2}
+  - {a: StarLight, b: Caltech,   gbps: 100, ms: 50}
+  - {a: StarLight, b: ORNL,      gbps: 100, ms: 15}
+  - {a: FNAL,      b: ORNL,      gbps: 100, ms: 15}
+  - {a: Caltech,   b: UCSD,      gbps: 100, ms: 5}
+  - {a: FNAL,      b: UCSD,      gbps: 100, ms: 55}
