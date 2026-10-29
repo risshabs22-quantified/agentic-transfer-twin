@@ -1,0 +1,125 @@
+{
+ "run_id": "1000genome-8ch__normal__seed7__agents_static",
+ "settings": {
+  "workflow": "1000genome-8ch",
+  "workflow_file": "data/raw/1000genome-chameleon-8ch-100k-001.json",
+  "workflow_sha256": "6b62bf9b7a773988e31dadd6f39f389f62b0abedfaa46eec889f6992c0314f2f",
+  "scenario": "normal",
+  "seed": 7,
+  "planner": "agents_static",
+  "mode": "rule",
+  "planner_params": {
+   "priority_fraction": 0.3,
+   "move_margin": 0.1,
+   "draft_margin": 0.05,
+   "busy_threshold": 0.3,
+   "k_paths": 3
+  },
+  "sites": [
+   "Caltech",
+   "UCSD",
+   "FNAL",
+   "ORNL"
+  ],
+  "source_site": "CERN",
+  "slack": 1.5,
+  "data_scale": 100,
+  "simulator": {
+   "steps_per_deadline": 1000,
+   "max_time_frac": 20,
+   "timeout_frac": 0.1
+  },
+  "background": {
+   "mean": 0.2,
+   "wave": 0.1,
+   "period_frac": 0.5,
+   "noise": 0.05,
+   "interval_frac": 0.005
+  },
+  "events": [],
+  "topology": {
+   "sites": [
+    "CERN",
+    "StarLight",
+    "FNAL",
+    "Caltech",
+    "UCSD",
+    "ORNL"
+   ],
+   "links": [
+    {
+     "a": "CERN",
+     "b": "StarLight",
+     "gbps": 400.0,
+     "ms": 90.0
+    },
+    {
+     "a": "StarLight",
+     "b": "FNAL",
+     "gbps": 400.0,
+     "ms": 2.0
+    },
+    {
+     "a": "StarLight",
+     "b": "Caltech",
+     "gbps": 100.0,
+     "ms": 50.0
+    },
+    {
+     "a": "StarLight",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "FNAL",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "Caltech",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 5.0
+    },
+    {
+     "a": "FNAL",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 55.0
+    }
+   ]
+  }
+ },
+ "metrics": {
+  "completed": true,
+  "completion_s": 509.7311828452646,
+  "failed_attempts": 0,
+  "failed_transfers": 0,
+  "late": 0,
+  "n_transfers": 173,
+  "gb_moved": 3796.0875627,
+  "avg_gbps": 59.57787462027569,
+  "data_wait_s": 9716.648340159705,
+  "reroutes": 0,
+  "decisions": 1,
+  "end_s": 509.7311828452646,
+  "deadline_D_s": 601.916,
+  "tasks_done": 208,
+  "transfers_arrived": 173,
+  "rejected_entries": 0
+ },
+ "log": "ablation/logs/1000genome-8ch__normal__seed7__agents_static.jsonl.gz",
+ "git_commit": "ac9d65c3f245f3e8f680987ee4073c6ddfa54acd-dirty",
+ "versions": {
+  "python": "3.12.14",
+  "networkx": "3.7",
+  "numpy": "2.5.4",
+  "pandas": "3.1.0",
+  "matplotlib": "3.11.2",
+  "PyYAML": "6.0.3",
+  "mcp": "2.3.0",
+  "pytest": "9.2.0"
+ }
+}

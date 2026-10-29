@@ -59,8 +59,13 @@ class AgentTeam(Planner):
     mode = "rule"
 
     def __init__(self, priority_fraction: float = 0.3, busy_threshold: float = 0.3, k_paths: int = 3,
-                 move_margin: float = 0.1, draft_margin: float = 0.0, drafts: str = "all"):
+                 move_margin: float = 0.1, draft_margin: float = 0.0, drafts: str = "all",
+                 react: bool = True):
         super().__init__()
+        # react=False is the "agents_static" ablation: same initial plan, but never reacts to events.
+        self.react = react
+        if not react:
+            self.name = "agents_static"
         self.drafts = drafts  # "all", or a comma list of draft names to consider (for ablations)
         self.workflow_agent = WorkflowAgent(priority_fraction)
         self.network_agent = NetworkAgent(k_paths, busy_threshold)
@@ -80,6 +85,9 @@ class AgentTeam(Planner):
         return plan
 
     def on_event(self, event: dict[str, Any], view: Any) -> Plan:
+        if not self.react:
+            self.note = {"agent": "coordinator", "reason": "ablation: agents_static never reacts to events"}
+            return {}
         changes, calls = run_with_tools(build_server(view), lambda tc: self._react(tc, event))
         self.note["tool_calls"] = calls
         return changes

@@ -13,7 +13,7 @@ Every entry says what was built, why, and the commands to verify it.
 - [x] Stage 5 — tools, MCP server, tool client, stdio demo
 - [x] Stage 6 — agents + event handling, agent tuning on dev workflows
 - [x] Stage 7 — decision log, replay, experiment runner (180 runs)
-- [ ] Stage 8 — tables, plots, README, write-up
+- [x] Stage 8 — tables, plots, README, write-up
 - [ ] Stage 9 — `docs/HOW_IT_WORKS.md`
 - [ ] Stage 10 — fresh-clone reproduction check
 
@@ -41,6 +41,10 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 16 | 6 | The tool client tags every recorded call with the calling agent (`workflow_agent` / `network_agent` / `coordinator`). | The decision log then shows which agent asked what. | `tests/test_agents.py`. |
 | 17 | 7 | Manifests store a **self-contained `settings` dict** (workflow file + sha256, sites, slack, data_scale, the scenario's events, background parameters, the full topology, simulator settings, planner + parameters), and replay rebuilds the simulator from it (`att/runner.py::sim_from_settings`) rather than from the current YAML files. Experiments use the same function, so there is one code path. | A replay can't silently pick up a later config edit; a changed data file is detected by its hash. | `tests/test_replay.py`. |
 | 18 | 7 | `summary.csv` is rebuilt from the manifests of every run in the configured grid, in grid order. Logs are gzip files with a fixed header (mtime 0, no file name). Added `att/experiment.py` (run + record one run). | Running a subset refreshes only those runs and still produces the same full table; identical runs give byte-identical logs. | `test_log_and_manifest_are_byte_identical_when_rerun`. |
+| 19 | 8 | **Supplementary ablation `agents_static`** (the agents' initial plan, never reacting to events), run on the same 60 result-workflow cells by `scripts/run_ablation.py` into `results/ablation/` (logs, manifests, its own `summary.csv`). It is not part of the 180 main runs or `results/summary.csv`. | The main table showed the agents are already faster in `normal`, so part of their advantage is up-front planning, not coordination. This ablation measures how much comes from reacting to events (SciNet 4.4.2: "which benefits come from coordination vs. rerouting"). Nothing was tuned on it. | `python scripts/run_ablation.py`; table at the end of `results/table.md`. |
+| 20 | 8 | A third auto-synced block, `<!-- SUMMARY:START/END -->`, holds a one-sentence headline computed by `make_tables.py` (`results/headline.md`); the write-up's Summary section and the README lead use it. The docs-consistency test covers all three blocks. | The write-up's summary sentence must also trace to `results/`. | `tests/test_docs_consistency.py`. |
+| 21 | 8 | Key findings include the agents' clearest loss, which is on a **dev** workflow (Montage 0.05°, tuning seeds), read from `results/tuning/*.json`. | On the result workflows the agents were never slower in any paired comparison, but CLAUDE.md asks for a finding where they did not help if one exists; hiding the dev loss would overstate the agents. | `scripts/make_tables.py::dev_comparison`. |
+| 22 | 8 | Plots: completion time in seconds with a dashed line at D (one panel per workflow, since D differs); failures as a 2 × 2 grid (late / failed × workflow). Colors fixed per planner, from a palette checked for color-vision deficiency with the dataviz validator; every bar carries its value. | One y-axis per panel, units on axes, identity never by color alone. | `results/*.png`. |
 
 ## Tuning table
 
@@ -336,4 +340,37 @@ pytest -q tests/test_agents.py
 python scripts/run_experiments.py
 python scripts/replay.py --all
 pytest -q tests/test_replay.py
+```
+
+### 2026-10-29 — Stage 8: tables, plots, findings, README, write-up
+
+**Built**
+- `scripts/make_tables.py` → `results/table.md` (mean ± std of completion in s and × D, late,
+  failed, completed runs per workflow × scenario × planner; paired per-seed comparisons agents vs.
+  baseline and vs. baseline_reroute with mean Δ and win counts; the `agents_static` ablation
+  table), `results/key_findings.md` (6 sentences, every number computed, wording follows the sign
+  of each result), `results/headline.md`; rewrites the SUMMARY/RESULTS/FINDINGS blocks in
+  `README.md` and `docs/writeup.md`.
+- `scripts/make_plots.py` → `results/completion_time.png`, `results/failures.png` (titles computed
+  from the data). Rendered and checked by eye for overlaps.
+- `scripts/run_ablation.py` (Deviation 19).
+- `README.md` (summary, real vs. synthetic, install/run, results + findings + plots, MCP section
+  with Inspector command and a screenshot placeholder, data credit, "How this was built").
+- `docs/writeup.md` (sections 1–10, first person; the only numbers outside the synced blocks are
+  settings from `configs/` and the tuning outputs).
+- `tests/test_docs_consistency.py`: blocks equal the generated files; 180 rows; plots exist.
+
+**What the results say** (all from `results/`): the agents were faster than both baselines on all
+120 same-seed comparisons and had no late or failed transfers. Simple rerouting recovers 83%
+(1000Genome 8ch) and 53% (Montage 0.1°) of the agents' improvement under the link failure.
+Congestion is where coordination clearly matters (1000Genome 8ch: 1.17 D for both baselines vs.
+0.83 D). A real part of the agents' advantage is planning, not reacting: they are already 16%
+faster in `normal` on 1000Genome 8ch; but without event reactions the same plan takes 1.03 D under
+congestion and 1.34 D under the link failure. Congestion does not stress Montage 0.1° at all.
+
+**How to verify**
+```bash
+python scripts/run_ablation.py
+python scripts/make_tables.py && python scripts/make_plots.py
+pytest -q tests/test_docs_consistency.py
 ```

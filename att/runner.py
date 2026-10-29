@@ -46,7 +46,7 @@ def run_settings(exp: dict[str, Any], workflow: str, scenario: str, seed: int, p
         "seed": seed,
         "planner": planner,
         "mode": "rule",
-        "planner_params": dict(exp["agents"]) if planner == "agents" else {},
+        "planner_params": dict(exp["agents"]) if planner in ("agents", "agents_static") else {},
         "sites": list(exp["sites"]),
         "source_site": exp["source_site"],
         "slack": exp["slack"],
@@ -90,8 +90,8 @@ def make_planner(name: str, exp: dict[str, Any] | None = None, params: dict[str,
         return Baseline()
     if name == "baseline_reroute":
         return BaselineReroute()
-    if name == "agents":
-        return AgentTeam(**(params if params is not None else exp["agents"]))
+    if name in ("agents", "agents_static"):
+        return AgentTeam(**(params if params is not None else exp["agents"]), react=(name == "agents"))
     raise ValueError(f"unknown planner {name!r}")
 
 
