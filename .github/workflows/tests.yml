@@ -23,7 +23,8 @@ jobs:
       - run: pytest -q
 
   reproduce:
-    # Re-runs all 180 experiments on Linux and checks they match the committed results exactly.
+    # Cross-platform check on Linux x86-64: replay the COMMITTED logs, then re-run all 180
+    # experiments and compare with the committed summary.csv (ints exact, floats within 1e-9).
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -33,6 +34,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python scripts/run_experiments.py
-      - run: git diff --exit-code results/summary.csv
       - run: python scripts/replay.py --all
+      - run: cp results/summary.csv "$RUNNER_TEMP/committed_summary.csv"
+      - run: python scripts/run_experiments.py
+      - run: python scripts/check_summary.py results/summary.csv "$RUNNER_TEMP/committed_summary.csv"
