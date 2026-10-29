@@ -1,4 +1,4 @@
-"""Part 1: turn a WfInstances (WfFormat 1.6) JSON file into a list of network transfers.
+"""Turn a WfInstances (WfFormat 1.6) JSON file into a list of network transfers.
 
 Pipeline (each step is a small function so it can be tested and explained on its own):
 
@@ -86,14 +86,14 @@ def extract_transfers(path: str | Path, sites: list[str], source_site: str, slac
     it is moved once, by the deadline of the earliest of those tasks.
 
     Returns a dict with:
-      workflow    -- workflow name from the trace
-      deadline_s  -- workflow deadline D (seconds)
-      transfers   -- list of {id, file, bytes, src, dst, after_task, deadline_s}
-      placement   -- task id -> site (synthetic)
-      tasks       -- task id -> {parents, children, inputs, outputs, runtime_s, site,
+      workflow:    workflow name from the trace
+      deadline_s:  workflow deadline D (seconds)
+      transfers:   list of {id, file, bytes, src, dst, after_task, deadline_s}
+      placement:   task id -> site (synthetic)
+      tasks:       task id -> {parents, children, inputs, outputs, runtime_s, site,
                                  earliest_finish_s, latest_start_s}
-      file_bytes  -- file id -> size in bytes (after data_scale)
-      data_scale, slack, seed, source_site -- the settings used, for the record
+      file_bytes:  file id -> size in bytes (after data_scale)
+      data_scale, slack, seed, source_site: the settings used, for the record
     """
     name, tasks, size, runtime = load_instance(path)
     place = place_tasks(tasks, sites, seed)

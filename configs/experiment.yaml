@@ -1,4 +1,4 @@
-# Experiment settings. FROZEN after Stage 4 tuning (network) and Stage 6 tuning (agents);
+# Experiment settings. FROZEN after network tuning (scripts/tune.py) and agent tuning (scripts/tune_agents.py);
 # see docs/BUILD_LOG.md. Change anything here only by re-running everything and logging why.
 
 sites: [Caltech, UCSD, FNAL, ORNL]   # compute sites (task placement is a SYNTHETIC seeded hash)
@@ -10,7 +10,7 @@ simulator:
   max_time_frac: 20                  # give up at 20 x D
   timeout_frac: 0.1                  # a transfer stalled for 0.1 x D fails its attempt
 
-# data_scale multiplies every file size (SYNTHETIC). Chosen by scripts/tune.py in Stage 4.
+# data_scale multiplies every file size (SYNTHETIC). Chosen by scripts/tune.py.
 workflows:
   1000genome-2ch: {file: data/raw/1000genome-chameleon-2ch-100k-001.json, role: dev,    data_scale: 200}
   montage-005d:   {file: data/raw/montage-chameleon-2mass-005d-001.json,  role: dev,    data_scale: 1000}

@@ -1,4 +1,4 @@
-"""ReplayPlanner: re-run a logged run using only its decision log -- no agent code, no LLM calls.
+"""ReplayPlanner: re-run a logged run using only its decision log, with no agent code and no LLM calls.
 
 It hands the simulator the logged initial plan, then at each on_event call the next logged
 decision, after checking that the event the simulator is reporting is exactly the one that was

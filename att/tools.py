@@ -1,4 +1,4 @@
-"""Part 3: the tools agents use, as plain functions over a twin view.
+"""The tools agents use, as plain functions over a twin view.
 
 Every tool reveals only the PRESENT: the clock, today's free capacity, which links are up, and the
 status of transfers. None of them can see future noise or scheduled events, because the view they
@@ -48,7 +48,7 @@ def _data_ready_estimate(view: Any, after_task: str | None, tasks: dict[str, dic
 
 
 # ------------------------------------------------------------------------------------------------
-# SciNet 1.1.3 -- workflow requirements
+# SciNet 1.1.3: workflow requirements
 # ------------------------------------------------------------------------------------------------
 
 def get_workflow_requirements(view: Any) -> dict[str, Any]:
@@ -71,7 +71,7 @@ def get_workflow_requirements(view: Any) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------------------------------------------
-# SciNet 3.1.5 -- network state
+# SciNet 3.1.5: network state
 # ------------------------------------------------------------------------------------------------
 
 def get_network_state(view: Any) -> dict[str, Any]:
@@ -84,7 +84,7 @@ def get_network_state(view: Any) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------------------------------------------
-# SciNet 2.2.3 -- path options
+# SciNet 2.2.3: path options
 # ------------------------------------------------------------------------------------------------
 
 def get_paths(view: Any, src: str, dst: str, k: int = 3, avoid_down: bool = False) -> list[list[str]]:
@@ -107,7 +107,7 @@ def get_paths_many(view: Any, pairs: list[list[str]], k: int = 3, avoid_down: bo
 
 
 # ------------------------------------------------------------------------------------------------
-# SciNet 1.3.4 -- simple performance estimate
+# SciNet 1.3.4: simple performance estimate
 # ------------------------------------------------------------------------------------------------
 
 def estimate_transfer_time(view: Any, bytes: float, path: list[str]) -> dict[str, Any]:
@@ -132,7 +132,7 @@ def estimate_many(view: Any, items: list[dict[str, Any]]) -> list[dict[str, Any]
 
 
 # ------------------------------------------------------------------------------------------------
-# SciNet 3.1.5 -- what-if simulation on the twin
+# SciNet 3.1.5: what-if simulation on the twin
 # ------------------------------------------------------------------------------------------------
 
 def simulate_plan(view: Any, plan: dict[str, Any], horizon_s: float | None = None) -> dict[str, Any]:
@@ -146,7 +146,7 @@ def simulate_plan(view: Any, plan: dict[str, Any], horizon_s: float | None = Non
 
 
 # ------------------------------------------------------------------------------------------------
-# SciNet 3.2.4 -- plan validation
+# SciNet 3.2.4: plan validation
 # ------------------------------------------------------------------------------------------------
 
 def submit_plan(view: Any, plan: dict[str, Any]) -> dict[str, Any]:

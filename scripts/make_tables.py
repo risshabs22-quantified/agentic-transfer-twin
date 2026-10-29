@@ -139,7 +139,7 @@ def llm_decision_stats() -> dict[str, int]:
 
 
 def llm_section(df: pd.DataFrame, llm: pd.DataFrame) -> list[str]:
-    """Stretch goal 5: the agent team with Claude making the coordinator's final call (mode=llm)."""
+    """LLM mode: the agent team with Claude making the coordinator's final call (mode=llm)."""
     import json
     llm = llm.copy()
     llm["planner"] = "agents_llm"
@@ -170,11 +170,11 @@ def llm_section(df: pd.DataFrame, llm: pd.DataFrame) -> list[str]:
 
 
 def maxmin_section(df: pd.DataFrame, mm: pd.DataFrame) -> list[str]:
-    """Stretch goal 3: the same 180-run grid under max-min fair sharing."""
+    """The same 180-run grid under max-min fair sharing."""
     mm = mm.copy()
     mm["D"] = mm.workflow.map(df.attrs["D"])
     mm["completion_D"] = mm.completion_s / mm.D
-    L = ["", "**Supplementary: max-min fair sharing** (robustness check, not the main results). The same "
+    L = ["", "**Supplementary: max-min fair sharing** (a robustness check outside the main results). The same "
          f"{len(mm)} runs with weighted max-min fair sharing instead of proportional sharing; nothing re-tuned. "
          "Mean completion (× D), proportional → max-min; and the agents' paired wins under max-min.", "",
          "| Workflow | Scenario | baseline | baseline_reroute | agents | Agents faster than baseline / baseline_reroute (max-min) |",
@@ -189,7 +189,7 @@ def maxmin_section(df: pd.DataFrame, mm: pd.DataFrame) -> list[str]:
 
 
 def competing_section(c: pd.DataFrame) -> list[str]:
-    """Stretch goal 2: both result workflows share the normal network at once (30 runs)."""
+    """Both result workflows share the normal network at once (30 runs)."""
     wfs = [k.split(":")[0] for k in c.columns if k.endswith(":completion_D")]
     L = ["", "**Supplementary: competing workflows** (not part of the 180 main runs). "
          + " and ".join(NICE[w] for w in wfs) + " start together on the `normal` network; each keeps its "
@@ -218,65 +218,62 @@ def m(df, w, s, p, col="completion_D"):
 
 
 def make_findings(df: pd.DataFrame, abl: pd.DataFrame | None) -> str:
-    """4-6 plain sentences, each computed from the numbers (wording follows the sign of each result)."""
+    """Plain sentences computed from the numbers. Wording follows the sign of each result."""
     G, M = "1000genome-8ch", "montage-01d"
     out = []
 
-    # 1. headline: link failure, and how much simple rerouting recovers
-    parts = []
-    for w in (G, M):
-        b, r, a = (m(df, w, "link_failure", p) for p in PLANNERS)
-        share = (b - r) / (b - a) if b > a else float("nan")
-        parts.append(f"on {NICE[w]} the baseline took {b:.2f} D with {m(df, w, 'link_failure', 'baseline', 'failed_transfers'):.1f} "
-                     f"failed transfers per run, simple rerouting {r:.2f} D, and the agents {a:.2f} D, so rerouting alone "
-                     f"recovered {share:.0%} of the agents' improvement")
-    out.append("Under the link failure, " + "; ".join(parts) + ".")
+    # 1. link failure, and how much simple rerouting recovers
+    bG, rG, aG = (m(df, G, "link_failure", p) for p in PLANNERS)
+    bM, rM, aM = (m(df, M, "link_failure", p) for p in PLANNERS)
+    shG = (bG - rG) / (bG - aG) if bG > aG else float("nan")
+    shM = (bM - rM) / (bM - aM) if bM > aM else float("nan")
+    out.append(f"When the StarLight-Caltech link fails, the baseline on {NICE[G]} takes {bG:.2f} D, and "
+               f"{m(df, G, 'link_failure', 'baseline', 'failed_transfers'):.1f} transfers per run time out at least once. "
+               f"Rerouting alone brings it to {rG:.2f} D and the agents to {aG:.2f} D, so rerouting covers "
+               f"{shG:.0%} of the agents' gain. On {NICE[M]} the same three numbers are {bM:.2f}, {rM:.2f} and "
+               f"{aM:.2f} D, and rerouting covers {shM:.0%}.")
 
     # 2. congestion on the workflow it stresses
     b, r, a = (m(df, G, "congestion", p) for p in PLANNERS)
     pr = paired(df, G, "congestion", "agents", "baseline_reroute")
-    out.append(f"Congestion is where coordination mattered most: on {NICE[G]} baseline_reroute ignores surges and was "
-               f"{'identical to' if abs(b - r) < 1e-12 else 'close to'} the baseline ({r:.2f} D, "
-               f"{m(df, G, 'congestion', 'baseline_reroute', 'late'):.1f} late transfers per run), while the agents, "
-               f"which move transfers off the congested link, took {a:.2f} D with "
-               f"{m(df, G, 'congestion', 'agents', 'late'):.1f} late and were faster on {pr['wins']}/{pr['n']} seeds.")
+    same = "the same" if abs(b - r) < 1e-12 else "close to the"
+    out.append(f"Congestion is where coordination paid off. On {NICE[G]} the rerouting baseline ignores the surge, "
+               f"so it scores {same} result as the plain baseline: {r:.2f} D with "
+               f"{m(df, G, 'congestion', 'baseline_reroute', 'late'):.1f} late transfers per run. The agents move "
+               f"transfers off the congested link and finish in {a:.2f} D with "
+               f"{m(df, G, 'congestion', 'agents', 'late'):.1f} late, faster on {pr['wins']} of {pr['n']} seeds.")
 
     # 3. planning vs reacting
     gn = 1 - m(df, G, "normal", "agents") / m(df, G, "normal", "baseline")
     mn = 1 - m(df, M, "normal", "agents") / m(df, M, "normal", "baseline")
-    s3 = (f"Part of the agents' advantage is planning, not reacting: with no events at all they were already "
-          f"{gn:.0%} faster than the baseline on {NICE[G]} and {mn:.1%} faster on {NICE[M]}, by spreading large "
-          f"transfers over parallel routes")
+    s3 = (f"With no events at all the agents are already {gn:.0%} faster than the baseline on {NICE[G]} "
+          f"({mn:.1%} on {NICE[M]}), because they spread large transfers over parallel routes from the start.")
     if abl is not None:
         both = pd.concat([df, abl])
-        s3 += (f"; but the same initial plan without event reactions (agents_static) took "
-               f"{m(both, G, 'congestion', 'agents_static'):.2f} D under congestion and "
-               f"{m(both, G, 'link_failure', 'agents_static'):.2f} D under the link failure on {NICE[G]}, versus "
-               f"{m(both, G, 'congestion', 'agents'):.2f} D and {m(both, G, 'link_failure', 'agents'):.2f} D "
-               f"when the agents react")
-    out.append(s3 + ".")
+        s3 += (f" That plan alone does not carry them through events, though. Without reactions "
+               f"(agents_static) the same plan takes {m(both, G, 'congestion', 'agents_static'):.2f} D under "
+               f"congestion and {m(both, G, 'link_failure', 'agents_static'):.2f} D under the link failure, against "
+               f"{m(both, G, 'congestion', 'agents'):.2f} and {m(both, G, 'link_failure', 'agents'):.2f} D "
+               f"when the agents react.")
+    out.append(s3)
 
-    # 4. where the agents gained little or lost (result workflows, then the dev workflows used for tuning)
+    # 4. where the agents gained little
     bn, bc = m(df, M, "normal", "baseline"), m(df, M, "congestion", "baseline")
     an, ac = m(df, M, "normal", "agents"), m(df, M, "congestion", "agents")
     pn = paired(df, M, "normal", "agents", "baseline")
-    s4 = (f"Where there was little to fix, the agents gained little: congestion did not stress {NICE[M]} "
-          f"(baseline {bn:.3f} D in normal and {bc:.3f} D under congestion, because Montage moves most of its data "
-          f"after the surge window ends), and the agents' edge there ({an:.3f} D in normal, {ac:.3f} D under "
-          f"congestion; {pn['delta_s']:+.1f} s per run in normal) is a small planning effect, not a response to "
-          f"congestion")
-    out.append(s4 + ".")
+    out.append(f"Congestion barely touched {NICE[M]} (baseline {bn:.3f} D in normal, {bc:.3f} D with the surge), "
+               f"because Montage moves most of its data after the surge window closes. The agents' small edge there "
+               f"({an:.3f} and {ac:.3f} D, {pn['delta_s']:+.1f} s per run in normal) is the planning effect again.")
 
     # 4b. the agents' clearest loss: the dev workflow used for tuning
     by_wf: dict[str, list[str]] = {}
     for (w, sc), (a, b) in dev_comparison().items():
         if a > b:
-            by_wf.setdefault(w, []).append(f"{NICE[sc]} ({a:.3f} D vs. {b:.3f} D)")
+            by_wf.setdefault(w, []).append(f"{NICE[sc]} ({a:.3f} D against {b:.3f} D)")
     for w, cases in by_wf.items():
-        out.append(f"The agents did not always help: on the smaller {NICE[w]} workflow used for tuning, they were "
-                   f"slower than the baseline in " + " and ".join(cases) + " (means over the tuning seeds): their "
-                   f"start-of-run forecast can only assume today's network, and it sometimes picked a rebalanced "
-                   f"plan that then ran slower than plain lowest-delay routing.")
+        out.append(f"The agents lost on the smaller {NICE[w]} workflow used for tuning, in " + " and ".join(cases) +
+                   " over the tuning seeds. Their start-of-run forecast can only assume today's network, and it "
+                   "sometimes chose a rebalanced plan that ran slower than plain lowest-delay routing.")
 
     # 5. pile-on effect + overall losses
     lr, la = m(df, M, "link_failure", "baseline_reroute", "late"), m(df, M, "link_failure", "agents", "late")
@@ -284,10 +281,10 @@ def make_findings(df: pd.DataFrame, abl: pd.DataFrame | None) -> str:
                  for b in ("baseline", "baseline_reroute"))
     total = sum(paired(df, w, s, "agents", b)["n"] for w in (G, M) for s in SCEN_ORDER
                 for b in ("baseline", "baseline_reroute"))
-    tail = ("the agents were never slower" if losses == 0 else f"the agents were slower in {losses}")
-    out.append(f"On {NICE[M]} under the link failure, simple rerouting moved every stuck transfer onto the same "
-               f"backup route and still left {lr:.1f} late transfers per run, versus {la:.1f} for the agents, which "
-               f"spread and prioritized them; across all {total} paired comparisons on the result workflows {tail}.")
+    tail = ("they were never slower" if losses == 0 else f"they were slower in {losses}")
+    out.append(f"Rerouting has its own failure mode. On {NICE[M]} it sends every stuck transfer to the same backup "
+               f"route and still leaves {lr:.1f} late transfers per run, where the agents, spreading and prioritizing, "
+               f"leave {la:.1f}. Across all {total} paired comparisons on the result workflows, {tail}.")
     return "\n\n".join(out) + "\n"
 
 
@@ -322,7 +319,7 @@ def make_short_table(df: pd.DataFrame) -> str:
 
 
 def make_headline(df: pd.DataFrame) -> str:
-    """The main result in one sentence (used as the write-up's summary and the README's lead)."""
+    """The main result, for the write-up's summary and the README."""
     G, M = "1000genome-8ch", "montage-01d"
     pairs = [paired(df, w, s, "agents", b) for w in (G, M) for s in SCEN_ORDER for b in ("baseline", "baseline_reroute")]
     wins, total = sum(p["wins"] for p in pairs), sum(p["n"] for p in pairs)
@@ -332,11 +329,11 @@ def make_headline(df: pd.DataFrame) -> str:
         b, r, a = (m(df, w, "link_failure", p) for p in PLANNERS)
         share[w] = (b - r) / (b - a)
     rc, ac = m(df, G, "congestion", "baseline_reroute"), m(df, G, "congestion", "agents")
-    return (f"In {len(df)} simulated runs, the agent team finished sooner than the baselines in {wins} of {total} "
-            f"same-seed comparisons and had {late_a} late transfers; simple rerouting alone already recovered a large "
-            f"share of the damage from a link failure ({share[G]:.0%} of the agents' improvement on {NICE[G]}, "
-            f"{share[M]:.0%} on {NICE[M]}), but under congestion only the coordinated agents helped "
-            f"({NICE[G]}: {rc:.2f} D with rerouting vs. {ac:.2f} D with the agents, where D is the deadline).\n")
+    beat = (f"beat both baselines in all {total}" if wins == total else f"beat the baselines in {wins} of {total}")
+    return (f"Across {len(df)} simulated runs, the agent team {beat} same-seed comparisons and had {late_a} late "
+            f"transfers. Plain rerouting already fixes much of a link failure ({share[G]:.0%} of the agents' gain on "
+            f"{NICE[G]}, {share[M]:.0%} on {NICE[M]}). Congestion is different: rerouting does nothing there, and on "
+            f"{NICE[G]} the agents finish at {ac:.2f} D against {rc:.2f} D, where D is the deadline.\n")
 
 
 def sync_docs() -> list[str]:

@@ -1,4 +1,4 @@
-"""Part 2: the SYNTHETIC network -- topology, background load, and scenario events.
+"""The SYNTHETIC network: topology, background load, and scenario events.
 
 Each link has a capacity (Gbps) and a one-way delay (ms). Other traffic on the link (the
 "background load") takes part of the capacity and drifts over time. A scenario can add a surge

@@ -2,7 +2,7 @@
 
 Only used by the `mode=llm` agent team (att/agents/llm_coordinator.py). Nothing in the main results
 calls this. The API key comes from the ANTHROPIC_API_KEY environment variable or the gitignored
-`.env` file in the repo root -- never from git.
+`.env` file in the repo root, never from git.
 
 Spend is tracked in results/llm/spend.json from each response's token usage. Before every call we
 check that even a worst-case call (full max_tokens of output) can't push the total over the cap;
@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from pathlib import Path
 from typing import Any
 
 from att import config

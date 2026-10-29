@@ -1,4 +1,4 @@
-"""Stretch goal 2 (supplementary, not part of the 180 main runs): both result workflows share the
+"""Supplementary (outside the 180 main runs): both result workflows share the
 network at the same time.
 
 1000Genome 8ch and Montage 0.1° start together at t = 0 on the normal network (background

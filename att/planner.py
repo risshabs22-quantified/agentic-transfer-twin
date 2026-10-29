@@ -5,9 +5,9 @@ A plan is a dict keyed by transfer id:
 
     {"<transfer_id>": {"path": ["CERN", "StarLight", "Caltech"], "priority": 1, "start_s": 0.0}, ...}
 
-  path      -- the sites the transfer goes through, from its src to its dst
-  priority  -- 1 (normal) or 2 (gets twice the share of a busy link)
-  start_s   -- don't start before this time (seconds); it can still wait longer for its producer
+  path:      the sites the transfer goes through, from its src to its dst
+  priority:  1 (normal) or 2 (gets twice the share of a busy link)
+  start_s:   don't start before this time (seconds); it can still wait longer for its producer
 """
 from __future__ import annotations
 

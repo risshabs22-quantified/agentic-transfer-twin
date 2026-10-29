@@ -1,4 +1,4 @@
-"""Stretch goal 5 (optional, costs money): run the agent team in LLM mode (`mode=llm`).
+"""Optional, costs money: run the agent team in LLM mode (`mode=llm`).
 
 Same result workflows, scenarios and evaluation seeds as the main `agents` runs (60 runs), with
 Claude (claude-opus-5-5) making the coordinator's final decision. Results go to results/llm/

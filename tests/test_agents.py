@@ -1,4 +1,4 @@
-"""Stage 6: the agent team runs end to end, uses only MCP tools, and is deterministic."""
+"""The agent team runs end to end, uses only MCP tools, and is deterministic."""
 import ast
 import json
 

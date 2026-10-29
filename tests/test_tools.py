@@ -1,4 +1,4 @@
-"""Stage 5: tools work directly, in-process over MCP, and over stdio; simulate_plan can't see the future."""
+"""Tools work directly, in-process over MCP, and over stdio; simulate_plan can't see the future."""
 import json
 import sys
 

@@ -4,7 +4,7 @@
   results/failures.png         late transfers and failed transfers, same layout
 
 Titles are computed from the data so they state the finding. Colors follow the planner (never its
-rank): baseline blue, baseline_reroute orange, agents aqua -- a palette checked for color-vision
+rank): baseline blue, baseline_reroute orange, agents aqua, a palette checked for color-vision
 deficiency with the dataviz validator. Values are printed on the bars, so color is never the only cue.
 
 Usage:

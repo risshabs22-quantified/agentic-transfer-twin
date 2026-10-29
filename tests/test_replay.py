@@ -1,4 +1,4 @@
-"""Stage 7: decision logs, manifests and exact replay."""
+"""Decision logs, manifests and exact replay."""
 import gzip
 import json
 

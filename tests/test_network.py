@@ -1,4 +1,4 @@
-"""Stage 2: topology, background load, and scenario events."""
+"""Topology, background load, and scenario events."""
 import numpy as np
 import pytest
 

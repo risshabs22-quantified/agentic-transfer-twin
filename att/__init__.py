@@ -1,9 +1,9 @@
 """agentic-transfer-twin: agents plan workflow data transfers over a simulated network (a "twin").
 
 Modules (in pipeline order):
-  extract      Part 1  -- workflow trace -> transfers with sizes, dependencies, deadlines
-  network      Part 2  -- synthetic topology, background load, scenario events
-  simulator    Part 2  -- the twin: runs a plan, reports metrics, takes snapshots
+  extract      workflow trace -> transfers with sizes, dependencies, deadlines
+  network      synthetic topology, background load, scenario events
+  simulator    the twin: runs a plan, reports metrics, takes snapshots
   planner      interface every planner implements + plan validation
   baseline     the rule-based baselines
   tools        tool functions over a read-only view of the twin

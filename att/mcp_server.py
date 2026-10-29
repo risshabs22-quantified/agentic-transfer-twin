@@ -1,4 +1,4 @@
-"""Part 3: expose the tools in att/tools.py through an MCP server (MCP Python SDK 2.x, v2 API).
+"""Expose the tools in att/tools.py through an MCP server (MCP Python SDK 2.x, v2 API).
 
     build_server(view) -> MCPServer   one tool wrapper per function in att/tools.py
 

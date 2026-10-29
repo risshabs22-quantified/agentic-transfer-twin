@@ -1,4 +1,4 @@
-"""Part 2: the network "digital twin" -- runs a workflow's transfers and tasks over the network.
+"""The network "digital twin", which runs a workflow's transfers and tasks over the network.
 
 How time moves (an exact event-driven design; see docs/BUILD_LOG.md, Deviations):
 
@@ -93,7 +93,7 @@ class Simulator:
         self.workflow = workflow
         self.topo = topo
         self.D = float(workflow["deadline_s"])
-        # Several workflows sharing the network (stretch goal): each keeps its own deadline D_i.
+        # Several workflows sharing the network: each keeps its own deadline D_i.
         # Capacity is re-sampled on the SHORTEST workflow's grid and each transfer times out after
         # 0.1 x its own workflow's D, so neither workflow is judged on the other's clock.
         self.members: dict[str, float] = {k: float(v["deadline_s"]) for k, v in workflow.get("members", {}).items()}
@@ -105,8 +105,6 @@ class Simulator:
         if sharing not in ("proportional", "maxmin"):
             raise ValueError(f"unknown sharing model {sharing!r}")
         self.sharing = sharing  # "proportional" (default, used for all main results) or "maxmin"
-        self.settings = {"steps_per_deadline": steps_per_deadline, "max_time_frac": max_time_frac,
-                         "timeout_frac": timeout_frac, "dt": self.dt}
         n_links = len(topo.links)
 
         # The network "truth" for this run. Planners never see these two attributes.
@@ -130,7 +128,7 @@ class Simulator:
         self.rejections = 0
         self.planner: Planner | None = None
         self.stop_time = self.max_time
-        # Optional measurement used only by Stage 4 tuning: bytes carried per link in [t0, t1].
+        # Optional measurement used only by network tuning (scripts/tune.py): bytes carried per link in [t0, t1].
         self.count_window: tuple[float, float] | None = None
         self.window_bytes = [0.0] * n_links
 
@@ -548,7 +546,7 @@ class Simulator:
         """
         c = Simulator.__new__(Simulator)
         c.workflow, c.topo, c.D, c.dt = self.workflow, self.topo, self.D, self.dt
-        c.max_time, c.timeout, c.seed, c.settings = self.max_time, self.timeout, self.seed, dict(self.settings)
+        c.max_time, c.timeout, c.seed = self.max_time, self.timeout, self.seed
         c.members, c.sharing = self.members, self.sharing
         c._load = None
         c._const_free = self.free_now()
@@ -591,7 +589,7 @@ class TwinView:
     def __init__(self, sim: Simulator):
         self._sim = sim
 
-    # -- static facts (the map and the workflow's requirements) --
+    # static facts (the map and the workflow's requirements)
     @property
     def now(self) -> float:
         return self._sim.t
@@ -603,10 +601,6 @@ class TwinView:
     @property
     def topology(self) -> Topology:
         return self._sim.topo
-
-    @property
-    def timeout_s(self) -> float:
-        return self._sim.timeout
 
     def links(self) -> list[dict[str, Any]]:
         """Current state of every link: capacity, free capacity now, up/down."""

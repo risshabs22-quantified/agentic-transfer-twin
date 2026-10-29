@@ -1,4 +1,4 @@
-"""Stage 4 tuning: choose data_scale per workflow and check each stress scenario really stresses it.
+"""Network tuning: choose data_scale per workflow and check each stress scenario really stresses it.
 
 Uses ONLY the plain `baseline` planner and ONLY the tuning seeds (100-104), before any agent
 exists, so nothing about the agents can leak into the network settings.
@@ -158,10 +158,10 @@ def write_experiment(report: dict, path: Path = config.CONFIGS / "experiment.yam
     for wf, rec in report["workflows"].items():
         text, n = re.subn(rf"(\n  {re.escape(wf)}:\s*\{{[^}}]*data_scale:\s*)[^}}\s]+", rf"\g<1>{rec['data_scale']}", text)
         assert n == 1, wf
-    text = re.sub(r"\n# --- scenario overrides from Stage 4 tuning ---.*\Z", "", text, flags=re.S)
+    text = re.sub(r"\n# --- scenario overrides from network tuning ---.*\Z", "", text, flags=re.S)
     overrides = {wf: rec["overrides"] for wf, rec in report["workflows"].items() if rec["overrides"]}
     if overrides:
-        text = text.rstrip("\n") + "\n\n# --- scenario overrides from Stage 4 tuning ---\n" + \
+        text = text.rstrip("\n") + "\n\n# --- scenario overrides from network tuning ---\n" + \
             "scenario_overrides:\n" + "".join(
                 f"  {wf}:\n" + "".join(f"    {sc}: {json.dumps(body)}\n" for sc, body in ov.items())
                 for wf, ov in overrides.items())

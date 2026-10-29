@@ -1,4 +1,4 @@
-"""Stretch goal 2: two workflows sharing the network."""
+"""Two workflows sharing the network."""
 import pytest
 
 from att import config

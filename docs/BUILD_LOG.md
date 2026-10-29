@@ -487,3 +487,12 @@ cmp results/summary.csv <(git show HEAD:results/summary.csv) && echo identical
   `results/table.md`. `tests/test_docs_consistency.py` checks both.
 - The credit line states that the project was designed, directed and verified by its author and that
   the code was written with an AI coding assistant (Claude Code) under that direction.
+
+### Writing pass and cleanup (2026-10-30)
+
+Docs, docstrings and the generated findings were rewritten in plainer language: shorter
+sentences, no dashes used as punctuation, and no internal milestone labels ("Stage 4",
+"stretch goal") in code. The findings generator keeps the same computed numbers and the same
+sign-dependent wording. Dead code went too: `TwinView.timeout_s`, `Simulator.settings` and an
+unused import. Results are unchanged: `summary.csv` is identical, 180/180 main runs and 61/61 LLM
+runs replay exactly, and all 78 tests pass.

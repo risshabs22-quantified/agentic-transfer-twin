@@ -1,4 +1,4 @@
-"""The frozen experiment config matches what Stage 4 tuning chose."""
+"""The frozen experiment config matches what network tuning chose."""
 import json
 
 from att import config

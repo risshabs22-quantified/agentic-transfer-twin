@@ -1,4 +1,4 @@
-"""Stage 6 agent tuning: pick the agent parameters on the DEV workflows with the TUNING seeds only.
+"""Agent tuning: pick the agent parameters on the DEV workflows with the TUNING seeds only.
 
 The result workflows and the evaluation seeds (0-9) are never touched here, so the final results
 are not tuned on.

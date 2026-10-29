@@ -3,7 +3,7 @@
 Every run is described by a self-contained `settings` dict (workflow file + its sha256, sites,
 slack, data_scale, the scenario's events, the background model, the whole topology, simulator
 settings, planner name and parameters). The same dict is stored in the run's manifest, and
-`sim_from_settings` rebuilds the identical simulator from it -- that is how replay works.
+`sim_from_settings` rebuilds the identical simulator from it, which is how replay works.
 """
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ COMPETING = "competing_workflows"
 
 
 def competing_settings(exp: dict[str, Any], seed: int, planner: str = "baseline") -> dict[str, Any]:
-    """Stretch goal: both result workflows share the network at the same time (normal background,
+    """Both result workflows share the network at the same time (normal background,
     no scripted events). Each keeps its own frozen data_scale and its own deadline."""
     members = [w for w, v in exp["workflows"].items() if v["role"] == "result"]
     base = run_settings(exp, members[0], "normal", seed, planner=planner)

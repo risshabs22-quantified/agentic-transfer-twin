@@ -1,4 +1,4 @@
-"""Stage 0 check: the public WfInstances data and its license are present."""
+"""The public WfInstances data and its license are present."""
 import json
 from pathlib import Path
 

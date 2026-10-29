@@ -27,7 +27,7 @@ def scenarios(path: str | Path = CONFIGS / "scenarios.yaml") -> tuple[Background
 
 def scenario_events(exp: dict[str, Any], workflow: str, scenario: str,
                     path: str | Path = CONFIGS / "scenarios.yaml") -> list[NetEvent]:
-    """Events for (workflow, scenario): the shared scenario, unless Stage 4 tuning recorded a
+    """Events for (workflow, scenario): the shared scenario, unless network tuning (scripts/tune.py) recorded a
     per-workflow override in experiment.yaml under `scenario_overrides`."""
     _, all_events = load_scenarios(path)
     override = (exp.get("scenario_overrides") or {}).get(workflow, {}).get(scenario)

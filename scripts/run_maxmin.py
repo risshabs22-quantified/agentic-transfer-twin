@@ -1,4 +1,4 @@
-"""Stretch goal 3 (supplementary robustness check): re-run the full 180-run grid with max-min fair
+"""Supplementary robustness check: re-run the full 180-run grid with max-min fair
 sharing instead of the default proportional-to-priority sharing, to see whether the conclusions
 depend on the sharing model. Nothing is re-tuned: same frozen data_scale and agent parameters.
 

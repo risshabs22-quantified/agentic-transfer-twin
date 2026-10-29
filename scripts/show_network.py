@@ -1,4 +1,4 @@
-"""Print each link's free capacity at a few moments in each scenario (Stage 2 sanity check).
+"""Print each link's free capacity at a few moments in each scenario (a quick sanity check of the network model).
 
 Usage:
     python scripts/show_network.py [--workflow 1000genome-8ch] [--seed 100]

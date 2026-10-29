@@ -1,8 +1,8 @@
 """The rule-based baselines the agents are compared against.
 
-baseline          -- the reference method: lowest-delay path, everything priority 1, start as
+baseline:          the reference method: lowest-delay path, everything priority 1, start as
                      soon as the data exists, and never react to anything.
-baseline_reroute  -- an ablation: the same, but when a link goes down (or a transfer fails) it
+baseline_reroute:  an ablation: the same, but when a link goes down (or a transfer fails) it
                      moves every unfinished transfer that uses a down link onto the lowest-delay
                      path that avoids the links that are down right now. It ignores congestion
                      and never uses priorities. It answers "isn't this just rerouting?".
