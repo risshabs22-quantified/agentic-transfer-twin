@@ -1,4 +1,4 @@
-"""Part 2 simulator tests, including the three required by CLAUDE.md section 9."""
+"""Part 2 simulator tests: units, the failure path, determinism, sharing, forecasts."""
 import json
 import math
 

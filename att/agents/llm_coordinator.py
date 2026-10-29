@@ -14,9 +14,8 @@ refused, or the answer is unusable, the rule decision is used and the log says s
 Every prompt and raw answer is stored in the decision log, so a run can be audited and replayed
 exactly without calling the API again.
 
-Why one call per decision instead of letting Claude call the MCP tools itself: CLAUDE.md caps LLM
-mode at one call per plan and one per event, and a tool-using loop needs one API call per tool
-round. So the coordinator makes the tool calls and hands Claude their results.
+Why one call per decision instead of letting Claude call the MCP tools itself: LLM mode is capped
+at one call per plan and one per event, and a tool-using loop needs one API call per tool round. So the coordinator makes the tool calls and hands Claude their results.
 """
 from __future__ import annotations
 

@@ -1,7 +1,6 @@
 """Workflow agent (SciNet 2.2.1): which transfers are most urgent?
 
-Picture an airport control room: this agent is the person who knows which passengers have the
-tightest connections. For every unfinished transfer it estimates the earliest the file could
+For every unfinished transfer it estimates the earliest the file could
 arrive, compares that with the transfer's deadline, and gives the most urgent ones priority 2.
 
     earliest arrival = when the data will exist at its source (from the workflow)

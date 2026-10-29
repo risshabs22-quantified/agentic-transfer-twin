@@ -1,7 +1,6 @@
 """Network agent (SciNet 2.2.2, 2.2.3): what are the route options, and which links are busy?
 
-Picture the person in the control room watching the highway cameras: for every transfer it looks
-up the 3 lowest-delay routes, estimates how long the file would take on each one at today's free
+For every transfer it looks up the 3 lowest-delay routes, estimates how long the file would take on each one at today's free
 capacity, recommends the fastest route with no closed link, and flags busy links.
 """
 from __future__ import annotations

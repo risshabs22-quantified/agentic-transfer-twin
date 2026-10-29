@@ -23,7 +23,8 @@ def load_instance(path: str | Path) -> tuple[str, dict[str, dict], dict[str, int
     """Read a WfFormat 1.6 file.
 
     Returns (workflow name, tasks by id, file size in bytes by file id, runtime in seconds by task id).
-    Only the fields listed in CLAUDE.md section 5 are used.
+    Only these WfFormat 1.6 fields are used: tasks' id, parents, children, inputFiles, outputFiles;
+    files' id and sizeInBytes; execution tasks' id and runtimeInSeconds.
     """
     with open(path) as fh:
         d = json.load(fh)

@@ -1,6 +1,6 @@
 # Agents for workflow data transfers on a simulated network: a preliminary trial
 
-Risshab Shankar — November 2026
+Risshab Shankar, November 2026
 
 ## 1. Summary
 
@@ -10,13 +10,13 @@ In 180 simulated runs, the agent team finished sooner than the baselines in 120 
 
 ## 2. Goal
 
-I wanted to test, in a small and fully reproducible setting, the plan I proposed on October 23:
-take real workflow traces, extract their data-transfer requirements, run those transfers over a
-simulated network that changes over time, let a workflow agent, a network agent and a coordinator
-turn the requirements into a transfer plan through tools exposed over MCP, log every decision so
-any run can be replayed, and compare the agents with a simple rule-based baseline on completion
-time and failed transfers. I also wanted to find out honestly *where* agents help and where a
-simple rule is already enough.
+This project tests, in a small and fully reproducible setting, the plan I proposed on October 23.
+Real workflow traces give the data-transfer requirements. Those transfers run over a simulated
+network whose capacity changes, and a workflow agent, a network agent and a coordinator turn the
+requirements into a transfer plan through tools exposed over MCP. Every decision is logged so any
+run can be replayed, and the agents are compared with a simple rule-based baseline on completion
+time and failed transfers. The question I cared most about was where agents actually help and
+where a simple rule is already enough.
 
 ## 3. Setup
 
@@ -212,7 +212,7 @@ Agents vs. baseline_reroute: faster on 10/10 seeds for 1000Genome 8ch and 10/10 
 
 ![Late and failed transfers by scenario and planner](../results/failures.png)
 
-The end of the results table also has two supplementary experiments that are not part of the 180
+The end of the results table also has four supplementary experiments that are not part of the 180
 main runs:
 - **`agents_static`:** the agents' initial plan with no event reactions, which separates planning
   from coordination.
@@ -282,8 +282,8 @@ replay uses.
 - **Forecasts are persistence-only.** They assume today's network continues, which is wrong for
   outages and surges that end. On the small Montage workflow this sometimes led the agents to a
   worse plan.
-- **The test set is small.** It covers one workflow at a time, one event per scenario, two result
-  workflows and 10 seeds. The congestion window also happens not to overlap Montage's heavy
+- **The test set is small.** Apart from one two-workflow test, it runs one workflow at a time, with
+  one event per scenario, two result workflows and 10 seeds. The congestion window also happens not to overlap Montage's heavy
   traffic.
 
 ## 9. Next steps

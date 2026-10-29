@@ -42,7 +42,7 @@ def validate_entry(tid: str, entry: Any, transfers: dict[str, dict[str, Any]], t
                    now: float, finished: set[str] | frozenset[str] = frozenset()) -> str | None:
     """Check one plan entry. Returns None if it is valid, otherwise a short reason.
 
-    Rules (CLAUDE.md section 10): the transfer exists; the path is simple, starts at src, ends at
+    Rules: the transfer exists; the path is simple, starts at src, ends at
     dst and uses only existing links; priority is 1 or 2; start_s >= now. One extra rule: an
     entry for a transfer that has already sent all its bytes is rejected, because changing it
     would have no effect and would make "reroutes" counts misleading.

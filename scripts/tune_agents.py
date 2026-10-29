@@ -1,7 +1,7 @@
 """Stage 6 agent tuning: pick the agent parameters on the DEV workflows with the TUNING seeds only.
 
 The result workflows and the evaluation seeds (0-9) are never touched here, so the final results
-are not tuned on (CLAUDE.md section 4.4).
+are not tuned on.
 
 Objective: lowest mean completion time (as a fraction of D) over the 2 dev workflows x 3
 scenarios x 5 tuning seeds; ties broken by mean late fraction.

@@ -1,7 +1,7 @@
 """Decision log: one JSON object per line, per decision, in results/logs/<run_id>.jsonl.gz.
 
-Picture an airplane's black box: every time a planner is asked for a decision (the initial plan,
-and every event during the run) we record what triggered it, what the planner saw, which tools it
+Every time a planner is asked for a decision (the initial plan, and every event during the run)
+we record what triggered it, what the planner saw, which tools it
 called, what it decided, which entries were rejected, and its one-line reason. The log is enough
 to replay the run exactly without running any agent code (see att/replay.py).
 

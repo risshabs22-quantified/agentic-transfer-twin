@@ -1,9 +1,8 @@
 """Part 2: the SYNTHETIC network -- topology, background load, and scenario events.
 
-Picture a highway map: sites are cities, links are highways with a number of lanes (Gbps) and a
-driving time (one-way delay in ms). Other traffic (the "background load") takes up some lanes,
-and it rises and falls over time. A scenario can add a traffic jam (a "surge") or close a
-highway (a link going "down") for part of the run.
+Each link has a capacity (Gbps) and a one-way delay (ms). Other traffic on the link (the
+"background load") takes part of the capacity and drifts over time. A scenario can add a surge
+of extra load on one link, or take a link down, for part of the run.
 
 Everything here is synthetic: the map, its numbers, the load model and the events are invented
 for the experiment and are labeled that way in the docs.

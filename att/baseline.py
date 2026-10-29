@@ -1,6 +1,6 @@
 """The rule-based baselines the agents are compared against.
 
-baseline          -- what Risshab promised: lowest-delay path, everything priority 1, start as
+baseline          -- the reference method: lowest-delay path, everything priority 1, start as
                      soon as the data exists, and never react to anything.
 baseline_reroute  -- an ablation: the same, but when a link goes down (or a transfer fails) it
                      moves every unfinished transfer that uses a down link onto the lowest-delay

@@ -1,7 +1,7 @@
 """Coordinator (SciNet 2.2.6): turns the two agents' advice into one plan. It is the team's Planner.
 
-Picture the shift supervisor in the airport control room. The workflow agent says who is urgent;
-the network agent says which routes exist and how fast they are right now. The supervisor:
+The workflow agent says which transfers are urgent; the network agent says which routes exist and
+how fast they are right now. The coordinator:
 
   Initial plan
     1. ranks transfers by (priority 2 first, then least slack);

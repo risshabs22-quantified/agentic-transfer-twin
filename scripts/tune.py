@@ -1,7 +1,7 @@
 """Stage 4 tuning: choose data_scale per workflow and check each stress scenario really stresses it.
 
 Uses ONLY the plain `baseline` planner and ONLY the tuning seeds (100-104), before any agent
-exists, so nothing about the agents can leak into the network settings (CLAUDE.md section 14).
+exists, so nothing about the agents can leak into the network settings.
 
 Rule:
  1. data_scale = the LARGEST value in SCALES where, in `normal`, the baseline's mean completion

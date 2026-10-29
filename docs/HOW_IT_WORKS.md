@@ -1,39 +1,30 @@
 # How it works
 
-This is the guide to explaining every part of this repo on a call. It assumes you're smart and
-curious but new to networking. Every number quoted here comes from a file in `results/` or from a
-command you can run yourself (shown next to it).
+A technical tour of the repository: what each part does, why it is built the way it is, and where
+its limits are. Numbers below come from files in `results/` or from the commands shown next to them.
 
-**Contents**
-
-1. [The big picture](#1-the-big-picture)
-2. [The life of one transfer](#2-the-life-of-one-transfer)
-3. [File-by-file guide](#3-file-by-file-guide)
-4. [Design decisions and their trade-offs](#4-design-decisions-and-their-trade-offs)
-5. [What's real, what's synthetic, and the limitations](#5-whats-real-whats-synthetic-and-the-limitations)
+1. [Overview](#1-overview)
+2. [One transfer, start to finish](#2-one-transfer-start-to-finish)
+3. [Code map](#3-code-map)
+4. [Design decisions and trade-offs](#4-design-decisions-and-trade-offs)
+5. [Real data, synthetic parts, limitations](#5-real-data-synthetic-parts-limitations)
 6. [Glossary](#6-glossary)
-7. [How to run it, read the results, and change a scenario](#7-how-to-run-it-read-the-results-and-change-a-scenario)
-8. [Questions you may be asked](#8-questions-you-may-be-asked-with-short-honest-answers)
-9. [The 2-minute and 30-second versions](#9-the-2-minute-and-30-second-versions)
+7. [Running, reading results, changing a scenario](#7-running-reading-results-changing-a-scenario)
+8. [Design notes](#8-design-notes)
 
 ---
 
-## 1. The big picture
+## 1. Overview
 
-1. Scientific workflows (like 1000Genome or Montage) are chains of tasks. Tasks at one site often
-   need files made at another site, so data has to move across a network before the next task can
-   start.
-2. We read real workflow traces, put each task at one of four sites, and work out every file that
-   must cross the network: how big it is, what it waits for, and its deadline.
-3. A simulated network (a "digital twin") with changing background traffic, a congestion surge and a
-   link failure moves those files, and runs the tasks as their inputs arrive.
-4. A planner decides each transfer's route, priority and start time. We compare three planners:
-   - a simple baseline;
-   - a rerouting-only ablation;
-   - a team of three agents (workflow, network, coordinator) that can only see the network through
-     tools served by an MCP server.
-5. Every decision is written to a log, so each run can be replayed exactly, and the results are
-   compared fairly: same seeds, no peeking at the future, tuning kept separate from evaluation.
+Workflows like 1000Genome and Montage are graphs of tasks, and when a task at one site needs a file
+produced at another, that file has to cross the network before the task can start. The extractor
+reads public WfInstances traces, places each task at one of four sites, and lists every file that
+must move, with its size, the task it waits for, and a deadline from the critical path. The
+simulator moves those files over a synthetic six-site network whose free capacity drifts over
+time, and runs each task as soon as its inputs arrive. Three planners are compared on identical
+seeds: a lowest-delay baseline, the same baseline with rerouting around failed links, and an agent
+team that sees the network only through MCP tools. Each planner decision is logged, which is what
+lets every run be replayed exactly.
 
 ```mermaid
 flowchart LR
@@ -53,64 +44,40 @@ flowchart LR
     M --> P[scripts/make_tables.py, make_plots.py<br/>table, findings, plots, README/write-up blocks]
 ```
 
-> **Picture this:** a highway map. Sites are cities, links are highways. Each highway has a number
-> of lanes (capacity, in Gbps) and a driving time (delay, in ms). Background traffic takes some
-> lanes, and it rises and falls during the day. A *surge* is a traffic jam on one highway. A *link
-> failure* closes one highway. Our files are delivery trucks with deadlines.
-
 ---
 
-## 2. The life of one transfer
+## 2. One transfer, start to finish
 
-Let's follow one real file from the 1000Genome trace, `chr3n-4001-5001.tar.gz`, in the run
-`1000genome-8ch__link_failure__seed3__agents`. Reproduce everything below with:
+The file `chr3n-4001-5001.tar.gz` from the 1000Genome 8ch trace, in run
+`1000genome-8ch__link_failure__seed3__agents`. Every number here is printed by:
 
 ```bash
 python scripts/trace_transfer.py --run 1000genome-8ch__link_failure__seed3__agents --transfer chr3n-4001-5001.tar.gz@FNAL
 ```
 
-**Step 1: extraction (`att/extract.py`).**
-- **Where it is made.** The trace says task `individuals_ID0000029` writes this file. With seed 3
-  our synthetic placement puts that task at **Caltech**.
-- **Where it is needed.** Task `individuals_merge_ID0000035` reads it and is placed at **FNAL**.
-  Different sites, so this is a network transfer: id `chr3n-4001-5001.tar.gz@FNAL` (file @
-  destination), from Caltech to FNAL.
-- **Size.** About 0.003 GB after the ×100 `data_scale`, so it's a small file.
-- **Deadline.** The critical-path method says the merge task must start by **392.871 s** for the
-  workflow to meet its deadline D = 601.916 s, so that is this transfer's deadline.
-- **Readiness.** The transfer can't begin until its producer finishes. The producer runs 176.12 s
-  once *its* inputs arrive.
+**Extraction.** Task `individuals_ID0000029` writes the file, and with seed 3 the placement hash
+puts that task at Caltech. The task that reads it, `individuals_merge_ID0000035`, lands at FNAL, so
+the file has to travel: transfer `chr3n-4001-5001.tar.gz@FNAL`, Caltech to FNAL, about 0.003 GB
+after the ×100 `data_scale`. The merge task must start by 392.871 s for the workflow to meet
+D = 601.916 s, which makes 392.871 s the transfer's deadline. Nothing can be sent until the
+producer, a 176.12 s task, has finished.
 
-**Step 2: the initial plan (`att/agents/`).**
-- **The question.** At t = 0 the simulator asks the agent team for a plan, and the agents ask
-  everything through MCP tools.
-- **Workflow agent.** Estimates the earliest this file could arrive and finds its slack (deadline
-  minus earliest arrival) is among the smallest. It gives the file **priority 2**.
-- **Network agent.** Lists its 3 lowest-delay routes and estimates each at today's free capacity.
-- **Coordinator.** Builds three draft plans, forecasts each with `simulate_plan` (load-balanced
-  473.7 s, fastest-route 473.6 s, lowest-delay 536.4 s), and keeps the fastest-route draft. This
-  file goes **Caltech → StarLight → FNAL**.
+**Initial plan.** At t = 0 the agent team plans through MCP calls. The workflow agent finds this
+file's slack among the smallest and gives it priority 2. The network agent lists three routes with
+time estimates at the current free capacity. The coordinator forecasts three complete draft plans
+(load-balanced 473.7 s, fastest-route 473.6 s, lowest-delay 536.4 s), keeps the fastest-route draft,
+and this file is routed Caltech → StarLight → FNAL.
 
-**Step 3: the link fails.**
-- **What breaks.** At t = 90.287 s (0.15 D) the StarLight–Caltech link goes down, and the simulator
-  sends a `link_down` event to the planner.
-- **Coordinator's reaction.** It finds the 25 unfinished transfers whose route uses the down link,
-  including our file, which isn't even ready yet. It moves them over the remaining routes by
-  projected load.
-- **Our file's new route.** It now goes **Caltech → UCSD → FNAL**.
-- **The forecast check.** Before committing, the coordinator compared two forecasts:
-  - with the change, the run finishes at 480.0 s;
-  - without it, the run never finishes, because in a "nothing changes" forecast the link stays
-    down forever.
+**The failure.** At t = 90.287 s (0.15 D) the StarLight–Caltech link goes down. The coordinator
+finds 25 unfinished transfers whose route uses it, this file included even though its data does not
+exist yet, and spreads them over the remaining routes by projected load. This one moves to Caltech →
+UCSD → FNAL. The forecast with the change finishes at 480.0 s; the forecast without it never
+finishes, because a forecast keeps a down link down for good. The change is applied.
 
-  So it kept the change.
+**Arrival.** The producer finishes at 256.200 s and the file arrives at 256.260 s, well inside its
+deadline. The run completes at 480.002 s (0.797 D).
 
-**Step 4: in the simulator.**
-- **When it moves.** Its producer finished at 256.200 s, and the file was sent on the detour and
-  arrived at **256.260 s**, on time (deadline 392.871 s).
-- **The whole run.** It finished at 480.002 s (0.797 D).
-
-Compare the same file and seed under the other planners:
+The same file under the other planners:
 
 | Planner | Route | Data ready | Arrived | On time? | Run finished |
 |---|---|---|---|---|---|
@@ -118,161 +85,74 @@ Compare the same file and seed under the other planners:
 | baseline_reroute | moved to Caltech → UCSD → FNAL at the failure | 365.012 s | 365.072 s | on time | 590.284 s (0.981 D) |
 | agents | moved to Caltech → UCSD → FNAL at the failure, priority 2 | 256.200 s | 256.260 s | on time | 480.002 s (0.797 D) |
 
-Notice the baseline's file wasn't late because *it* was stuck. Its **producer** at Caltech
-couldn't start until its own raw inputs arrived from CERN, and those were stuck behind the dead
-link. That is a dependency chain, and it's why a single outage can delay so much of a workflow.
+Under the baseline the file itself was never stuck. Its producer at Caltech was waiting for raw
+inputs from CERN, and those were queued behind the dead link, so the delay arrived through the
+dependency chain.
 
-**Step 5: the log.** That link-down decision is one line in
-`results/logs/1000genome-8ch__link_failure__seed3__agents.jsonl.gz`. The line records:
-- the trigger (`link_down`, StarLight–Caltech, t, seq);
-- what the coordinator saw (25 affected, the down link, both forecasts);
-- the tool calls it made, each tagged with the agent that made it;
-- the full decision (every changed entry);
-- any rejected entries (none);
-- a one-line reason.
-
-**Step 6: replay.**
-- **What it does.** `python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents`
-  rebuilds the simulator from the run's manifest. It feeds the simulator the logged decisions, with
-  no agent code and no tools.
-- **What it checks.** Each event the simulator reports (type, sequence number, time) must match the
-  logged one.
-- **The result.** It prints `REPLAY OK` when all metrics match the manifest.
-
-> **Picture this:** the decision log is an airplane's black box. After the flight you can replay
-> exactly what the pilots saw and did, and check that the plane would fly the same way again.
+**Log and replay.** The link-down decision is one line in
+`results/logs/1000genome-8ch__link_failure__seed3__agents.jsonl.gz`: the trigger, what the
+coordinator saw (25 affected transfers, the down link, both forecasts), each tool call tagged with
+the agent that made it, the full decision, rejected entries (none), and a one-line reason.
+`python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents` rebuilds the simulator
+from the manifest, feeds it only the logged decisions, checks that each event arrives with the
+logged type, sequence number and time, and prints `REPLAY OK` when every metric matches.
 
 ---
 
-## 3. File-by-file guide
+## 3. Code map
 
-### `att/` — the package
+### `att/`
 
-**`extract.py` (Part 1).**
-- **What it does.** Trace JSON → transfers.
-- **Key functions.**
-  - `load_instance`
-  - `place_tasks`: seeded sha256 hash, so placement is repeatable in any process
-  - `earliest_finish_times` / `latest_start_times`: the critical-path method
-  - `extract_transfers`: one transfer per (file, destination site)
-- **Why it's built this way.** It is CLAUDE.md's reference code, kept exactly so the acceptance
-  table matches.
-- **To try something new.** Change `place_tasks` to use a smarter placement, or change `slack` (but
-  the experiment keeps it fixed at 1.5).
-
-**`network.py` (Part 2, the synthetic network).**
-- **Key pieces.**
-  - `Topology`: graph, link lookups, path delay, shortest and k-shortest paths
-  - `BackgroundLoad`: pre-drawn per-link phase and noise; load sampled per grid cell
-  - `timeline`: scenario events → on/off edges at fractions of D
-  - `free_capacity_Bps`
-- **Why it's built this way.** All randomness is drawn once at the start from one seeded RNG, so no
-  planner can change the network's future by what it does.
-- **To try something new.** Add an event type, such as a capacity cut instead of a full outage.
-
-**`simulator.py` (Part 2, the twin).**
-- **What it holds.** `Simulator` (the run), `TwinView` (what planners see), `snapshot()` /
-  `forecast()` (the persistence forecast behind `simulate_plan`).
-- **How time moves.** It is event-driven: it jumps to the next moment something changes. That's
-  exact and fast: a whole run takes well under a second.
-- **Key methods.**
-  - `_process_instant`: everything that happens at one time, in a fixed order
-  - `_rates`: priority-weighted sharing of each link
-  - `_loop`: the main loop
-  - `metrics`
-- **To try something new.** Replace `_rates` with max-min fair sharing.
-
-**`planner.py`.**
-- **What it holds.** The `Planner` interface (`plan`, `on_event`) and `validate_entry` /
-  `validate_plan`, the one validation function used by both the simulator and `submit_plan`.
-
-**`baseline.py`.**
-- **What it holds.** `Baseline` and `BaselineReroute`.
-
-**`tools.py`.**
-- **What it holds.** The tool functions over a `TwinView`, JSON in and JSON out:
-  - `get_workflow_requirements`
-  - `get_network_state`
-  - `get_paths(_many)`
-  - `estimate_transfer_time` / `estimate_many`
-  - `simulate_plan`
-  - `submit_plan`
-
-**`mcp_server.py`.**
-- **What it holds.** `build_server(view)` registers one MCP tool per function.
-- **Running it.** `python -m att.mcp_server` serves a demo twin over stdio for the Inspector and the
-  demo client.
-
-**`tool_client.py`.**
-- **What it holds.** `run_with_tools(server, fn)`, which opens one MCP session per decision inside
-  one `asyncio.run`.
-- **Logging.** It records every call (tool, args, one-line result, and which agent called it).
-
-**`agents/workflow_agent.py`.**
-- **What it does.** Computes slack and gives priority 2 to the most urgent `priority_fraction`.
-
-**`agents/network_agent.py`.**
-- **What it does.** Finds routes and per-route estimates, recommends the fastest route, and flags
-  busy links.
-
-**`agents/coordinator.py`.**
-- **What it holds.** `AgentTeam`, the team's planner.
-- **Initial plan.** Three drafts forecast by `simulate_plan`, with a margin before leaving the simple
-  plan.
-- **Event handlers.** It re-plans only the affected transfers.
-- **The forecast gate.** It keeps a change only if forecasts say it's no worse.
-- **To try something new.** Change `_react`, or add an LLM call that chooses between the drafts.
-
-**`decision_log.py`.**
-- **What it does.** Writes and reads the gzip JSON-lines logs, byte-for-byte deterministic.
-
-**`replay.py`.**
-- **What it holds.** `ReplayPlanner` (returns logged decisions, checks every event) and `replay_run`.
-
-**`runner.py`.**
-- **What it holds.** `run_settings` (everything about a run as plain JSON), `sim_from_settings`,
-  `build_sim`, `make_planner`, `run_id`.
-
-**`experiment.py`.**
-- **What it does.** Runs one run and writes its log and manifest; builds the 180-run grid.
-
-**`config.py`.**
-- **What it does.** Loads the YAML configs.
+| File | Contents | Notes |
+|---|---|---|
+| `extract.py` | `load_instance`, `place_tasks` (seeded sha256), `earliest_finish_times` / `latest_start_times` (critical path), `extract_transfers`, `merge_workflows` | One transfer per (file, destination site). Reproduces the transfer counts, GB and deadlines checked in `tests/test_extract.py`. |
+| `network.py` | `Topology`, `BackgroundLoad`, `timeline`, `free_capacity_Bps` | All randomness is drawn once per run from one seeded RNG, so nothing a planner does can change the network's future. |
+| `simulator.py` | `Simulator`, `TwinView`, `snapshot()` / `forecast()` | Event-driven: jumps to the next moment something changes. `_process_instant` handles one moment in a fixed order, `_rates` shares link capacity, `metrics` reports the run. |
+| `planner.py` | `Planner` interface, `validate_entry`, `validate_plan` | The same validation runs in the simulator and in `submit_plan`. |
+| `baseline.py` | `Baseline`, `BaselineReroute` | |
+| `tools.py` | the tool functions over a `TwinView` | JSON in, JSON out; only the present is visible. |
+| `mcp_server.py` | `build_server(view)` | `python -m att.mcp_server` serves a demo twin over stdio. |
+| `tool_client.py` | `run_with_tools(server, fn)` | One MCP session per decision inside one `asyncio.run`; records every call. |
+| `agents/workflow_agent.py` | slack ranking | Priority 2 for the most urgent `priority_fraction` of transfers. |
+| `agents/network_agent.py` | route options, estimates, busy links | |
+| `agents/coordinator.py` | `AgentTeam` | Three drafts compared by forecast, a margin before leaving the simple plan, targeted reactions to events, a forecast gate on every change. |
+| `agents/llm_coordinator.py` | `LLMAgentTeam` | Optional: Claude makes the coordinator's final call (one API call per decision). |
+| `llm.py` | one structured-output API call, spend ledger, hard cap | Only used by LLM mode. |
+| `decision_log.py` | gzip JSON-lines logs | Byte-for-byte deterministic files. |
+| `replay.py` | `ReplayPlanner`, `replay_run` | |
+| `runner.py` | `run_settings`, `sim_from_settings`, `make_planner`, `run_id` | A run is fully described by a plain-JSON settings dict. |
+| `experiment.py` | run one run, write its log and manifest; the 180-run grid | |
+| `config.py` | YAML loading | |
 
 ### `configs/`
 
-- **`topology.yaml`.** The synthetic map.
-- **`scenarios.yaml`.** The background model, plus three scenarios as fractions of D.
-- **`experiment.yaml`.** Sites, slack, simulator settings, the 4 workflows with their frozen
-  `data_scale`, seeds, and the frozen agent parameters.
+`topology.yaml` holds the synthetic map and `scenarios.yaml` the background model and the three
+scenarios as fractions of D. `experiment.yaml` holds sites, slack, simulator settings, the four
+workflows with their frozen `data_scale`, the seeds, and the frozen agent parameters.
 
 ### `scripts/` (run from the repo root)
 
-- **`fetch_data.py`.** Downloads the traces and their license.
-- **`show_network.py`.** Prints free capacity per link at several moments of each scenario.
-- **`tune.py`.** Stage 4: chooses `data_scale` and checks the stress scenarios, using the baseline
-  only and tuning seeds only.
-- **`tune_agents.py`.** Stage 6: a grid over agent parameters on the dev workflows with tuning seeds.
-- **`run_experiments.py`.** The 180 runs, then `summary.csv`.
-- **`run_ablation.py`.** The supplementary `agents_static` runs.
-- **`run_competing.py`.** Both result workflows sharing the network at once (supplementary).
-- **`run_maxmin.py`.** All 180 runs again under max-min fair sharing (supplementary robustness check).
-- **`run_llm.py`.** Optional LLM mode. It costs money and needs `ANTHROPIC_API_KEY` in the
-  environment or a gitignored `.env`. Already-recorded runs are skipped, and
-  `python scripts/replay.py --llm` replays them with no API calls.
-- **`check_summary.py`.** Compares two `summary.csv` files using the replay tolerance (used by CI).
-- **`replay.py`.** `--run <id>` or `--all`.
-- **`make_tables.py`.** Writes `table.md`, `key_findings.md` and `headline.md`, and syncs the README
-  and write-up blocks.
-- **`make_plots.py`.** The two PNGs.
-- **`mcp_demo_client.py`.** Calls every tool over stdio from a separate process.
-- **`trace_transfer.py`.** The "life of one transfer" story for any run and transfer.
+| Script | Purpose |
+|---|---|
+| `fetch_data.py` | download the traces and their license |
+| `show_network.py` | free capacity per link at several moments of each scenario |
+| `tune.py` | choose `data_scale` and check the stress scenarios (baseline only, tuning seeds) |
+| `tune_agents.py` | grid over agent parameters (dev workflows, tuning seeds) |
+| `run_experiments.py` | the 180 main runs, then `summary.csv` |
+| `replay.py` | `--run <id>`, `--all`, or `--llm` |
+| `make_tables.py`, `make_plots.py` | tables, findings, plots; syncs the README and write-up blocks |
+| `run_ablation.py` | `agents_static`: the agents' initial plan with no reactions |
+| `run_competing.py` | both result workflows sharing the network |
+| `run_maxmin.py` | all 180 runs under max-min fair sharing |
+| `run_llm.py` | optional LLM mode (needs `ANTHROPIC_API_KEY`; costs money; capped; recorded runs are skipped) |
+| `check_summary.py` | compare two `summary.csv` files with the replay tolerance (used by CI) |
+| `mcp_demo_client.py` | call every tool over stdio from a separate process |
+| `trace_transfer.py` | the section 2 walkthrough for any run and transfer |
 
-### Connecting Claude Desktop to the MCP server
+### Connecting Claude Desktop
 
-Add this to Claude Desktop's `claude_desktop_config.json` (on macOS in
-`~/Library/Application Support/Claude/`), using this folder's absolute path, then restart Claude
-Desktop:
+Add this to `claude_desktop_config.json` (on macOS in `~/Library/Application Support/Claude/`)
+with this folder's absolute path, then restart Claude Desktop:
 
 ```json
 {
@@ -288,124 +168,101 @@ Desktop:
 
 ### `tests/`
 
-`pytest -q` runs about 70 tests, including:
-- extraction acceptance;
-- units sanity;
-- the failure path;
-- cross-process determinism (extraction, simulator, agents);
-- no-peeking (future events don't change forecasts; planners can't import the simulator);
-- MCP in-process and over stdio;
-- exact replay;
-- docs consistency.
+`pytest -q` covers extraction against the published counts, a units check, the failure path,
+cross-process determinism of extraction, simulator and agents, no-peeking (future events leave
+forecasts unchanged, and planner code cannot import the simulator), MCP in-process and over stdio,
+exact replay, LLM mode with a mocked API, and consistency between the docs and `results/`.
 
 ---
 
-## 4. Design decisions and their trade-offs
+## 4. Design decisions and trade-offs
+
+Numbers in parentheses refer to the Deviations table in `docs/BUILD_LOG.md`.
 
 | Decision | Why | Trade-off |
 |---|---|---|
-| Event-driven simulator, capacity re-sampled every D/1000 (Deviation 1) | Exact times for arrivals, failures and task finishes; fast | Harder to explain than "tick every dt"; capacity is still a step function |
-| Proportional-to-priority sharing per link | Simple, explainable, makes priority meaningful | Not max-min fair; ignores TCP; leftover capacity is not redistributed |
-| Undirected links share capacity in both directions | Matches the spec's map | Real WAN links are full-duplex |
-| Stall timeout counts *consecutive* stall time (Dev. 2) | A timeout means "no progress for this long" | Short repeated stalls never fail |
-| A timeout doesn't fire if the link came back at that instant (Dev. 23) | The transfer isn't stuck any more | Found late; only changed attempt counts |
-| Rerouting keeps bytes already sent (Dev. 3) | Like restart markers in GridFTP; doesn't punish rerouting | Optimistic for tools that can't resume |
-| Reject plan entries for transfers already sent (Dev. 4) | Prevents meaningless "reroutes" | One extra rule beyond the spec |
-| Log every planner call, even "no change" (Dev. 5) | Replay can check every event | Baseline logs are long under failure |
-| One seed drives placement *and* noise, same for all planners | Paired comparison: identical conditions | Seeds aren't independent across scenarios (by design) |
-| `data_scale` by a fixed rule on the baseline only (Stage 4) | Can't be tuned to favor the agents | Sizes are synthetic |
-| Montage congestion kept unchanged, even though it doesn't stress (Stage 4, step c) | The rule forbids inventing harsher conditions | One of six cells shows nothing; reported as a finding |
-| Persistence forecast for `simulate_plan` | Can't see the future, provably | Wrong for events that end; sometimes misleads |
-| Coordinator considers the simple lowest-delay plan too, and needs a 5% forecast gain to leave it (Dev. 13) | Forecasts are noisy; the two spec drafts lost to the baseline on dev Montage | More logic; tuned on dev data only |
-| Change on an event only if a forecast says it's no worse (Dev. 14) | Stops locally-good, globally-bad moves | Extra `simulate_plan` calls (cheap) |
-| Agent parameters tuned on dev workflows + tuning seeds only (Dev. 15) | Fair comparison | Small grid |
-| Agents call tools through MCP even in-process | Proves the MCP interface is complete | A little overhead per call |
-| Self-contained run settings in every manifest (Dev. 17) | Replay can't pick up a later config edit | Manifests are a bit bigger |
-| `summary.csv` rebuilt from manifests (Dev. 18) | Running a subset gives the same table | — |
-| `agents_static` ablation (Dev. 19) | Separates up-front planning from reacting | Extra 60 runs outside the main 180 |
-| Findings computed by code, including where agents lost (Dev. 20–21) | No invented or cherry-picked numbers | Generated sentences are a bit stiff |
-| Float guard in the main loop (Dev. 8) | Prevents an infinite loop from tiny remainders | — |
+| Event-driven simulator, capacity re-sampled every D/1000 (1) | Exact times for arrivals, failures and task finishes; fast | Capacity is still a step function |
+| Proportional-to-priority sharing per link | Simple, and priority means something | Not max-min fair, no TCP dynamics, leftover capacity not redistributed |
+| Undirected links share capacity in both directions | Matches the map's definition | Real WAN links are full-duplex |
+| Stall timeout counts consecutive stall time (2) | A timeout means "no progress for this long" | Short repeated stalls never fail |
+| No timeout when the link returns at that same instant (23) | The transfer is no longer stuck | Found late; only attempt counts changed |
+| Rerouting keeps bytes already sent (3) | Like GridFTP restart markers; rerouting is not punished | Optimistic for tools that cannot resume |
+| Entries for already-sent transfers are rejected (4) | No meaningless "reroutes" | One rule beyond the basic checks |
+| Every planner call is logged, including "no change" (5) | Replay can verify every event | Long baseline logs under failure |
+| One seed drives placement and noise, shared by all planners | Paired comparison under identical conditions | Seeds are shared across scenarios by design |
+| `data_scale` set by a fixed rule on the baseline only | Cannot be tuned in the agents' favor | File sizes are synthetic |
+| Montage congestion left unchanged although it does not stress | The rule forbids making scenarios harsher | One of six cells shows nothing; reported |
+| Persistence forecast for `simulate_plan` | Provably blind to the future | Wrong for events that end; sometimes misleads |
+| Coordinator also forecasts the simple lowest-delay plan and needs a 5% gain to leave it (13) | Forecast noise; the other two drafts lost to the baseline on dev Montage | More logic; tuned on dev data only |
+| Event changes kept only if a forecast says they are no worse (14) | Stops locally good, globally bad moves | Extra `simulate_plan` calls (cheap) |
+| Agent parameters tuned on dev workflows and tuning seeds only (15) | Evaluation data never touched | Small grid |
+| Agents use MCP even in-process | The tool interface is shown to be complete | Small per-call overhead |
+| Self-contained settings in every manifest (17) | Replay cannot pick up a later config edit | Larger manifests |
+| `summary.csv` rebuilt from manifests (18) | A subset run gives the same table | |
+| `agents_static` ablation (19) | Separates planning from reacting | 60 extra runs outside the main 180 |
+| Findings generated from the numbers, including losses (20, 21) | No hand-typed or selected numbers | The generated sentences read a little stiffly |
+| Float guard in the main loop (8) | Prevents a zero-length-step loop | |
 
 ---
 
-## 5. What's real, what's synthetic, and the limitations
+## 5. Real data, synthetic parts, limitations
 
-**Real:**
-- task graphs;
-- which files each task reads and writes;
-- file sizes (before scaling);
-- task runtimes.
+From the public WfInstances traces: task graphs, which files each task reads and writes, file
+sizes before scaling, and task runtimes. Synthetic: task placement (a seeded hash), deadlines
+(1.5 × critical path), the network map with its capacities, delays and background load, the surge
+and the outage, and the `data_scale` multiplier.
 
-All of these come from the public WfInstances traces.
+Limitations:
 
-**Synthetic:**
-- which site each task runs at (a seeded hash);
-- the deadlines (1.5 × critical path);
-- the network map, its capacities, delays and background load;
-- the surge and the outage;
-- the `data_scale` multiplier on file sizes.
-
-**Limitations, in plain words:**
-- **Sharing is simplified.** The network shares capacity in a simple way: no TCP behavior, and both
-  directions of a link share one capacity. A max-min fair re-run gives the same picture.
-- **The numbers are invented.** The map and its numbers aren't real measurements.
-- **Placement is random.** Tasks go to sites by a hash, which creates more cross-site traffic than a
-  real scheduler would.
-- **Compute is unlimited.** Any number of tasks can run at once at a site.
-- **File sizes are multiplied** so the network matters.
-- **The main results use rules, not a language model.** LLM mode is one small supplementary test.
-- **Forecasts are persistence-only.** They assume the network stays as it is now, which is wrong
-  when an outage or surge will end.
-- **The test set is small.** It covers one workflow at a time, one event per scenario, two result
-  workflows and 10 seeds.
-- **Montage misses the congestion.** Its heavy traffic happens after the congestion window, so that
-  scenario says nothing about Montage.
+- Capacity sharing is simplified: no TCP behavior, and both directions of a link share one
+  capacity. A max-min fair re-run gives the same ordering of planners.
+- The network's numbers are invented, not measured.
+- Hash placement creates more cross-site traffic than a real scheduler would.
+- Compute is unlimited; any number of tasks can run at a site at once.
+- File sizes are multiplied so that the network matters.
+- The main results use rule-based agents. LLM mode is a small supplementary test.
+- Forecasts assume the network stays as it is now, which is wrong whenever an outage or surge ends.
+- The test set is small: one workflow at a time (plus one two-workflow test), one event per
+  scenario, two result workflows, 10 seeds.
+- Montage's heavy traffic comes after the congestion window, so that scenario says nothing about
+  Montage.
 
 ---
 
 ## 6. Glossary
 
-- **Bandwidth vs. latency.** Bandwidth is how much data per second a link can carry (the number of
-  lanes). Latency (delay) is how long one bit takes to cross it (the driving time). Big files care
-  about bandwidth; tiny messages care about latency.
-- **Gbps.** Gigabits per second, 10⁹ bits/s. File sizes are in *bytes* (8 bits), so 100 Gbps =
-  12.5 GB/s. Mixing these up is the classic "8× bug"; a test checks it.
-- **DAG.** Directed acyclic graph: tasks with arrows "this must finish before that", and no loops.
-  A workflow is a DAG.
-- **Critical path.** The longest chain of dependent tasks. Even with infinite network speed, the
-  workflow can't finish faster than this.
-- **Slack.** How much time something can slip without making the deadline. A transfer's slack =
-  its deadline − its earliest possible arrival.
-- **Deadline D.** Our synthetic workflow deadline: 1.5 × the critical path. All scenario times are
-  fractions of D, and results are often shown "× D".
-- **MCP (Model Context Protocol).** A standard way for an AI agent to discover and call tools on a
-  server. Our server exposes the twin's tools; any MCP client (including the Inspector or Claude
-  Desktop) can call them.
-- **Tool call.** One request from an agent to a tool (for example, `get_paths(CERN, UCSD)`) and its
-  answer.
-- **Digital twin.** A software model of a real system that you can run "what-ifs" on. Ours is a
-  simulated network plus the workflow's tasks.
-- **Baseline.** The simple method you compare against, here lowest-delay routes and never
-  reacting.
-- **Ablation.** A version with one ingredient removed, to see what that ingredient is worth.
-  `baseline_reroute` adds only rerouting; `agents_static` removes the agents' reactions to events.
-- **Seed.** The number that starts a random number generator. Same seed → same random numbers →
-  same run.
-- **Determinism.** Same inputs always give identical outputs, in any process. We avoid Python's
-  `hash()` on strings (it changes between processes) and set iteration order, and draw all random
-  numbers up front.
-- **Replay.** Re-running a recorded run from its log without the original decision-maker, and
-  checking you get the same result.
-- **Persistence forecast.** A forecast that assumes "tomorrow looks like today": current capacities
-  stay, down links stay down, nothing new happens.
-- **Paired comparison.** Comparing two planners on the *same* seed (same placement, noise and
-  events), then counting how often one wins. This removes luck from the comparison.
+- **Bandwidth vs. latency.** Bandwidth is how much data per second a link carries; latency (delay)
+  is how long a bit takes to cross it. Large files depend on bandwidth, small messages on latency.
+- **Gbps.** 10⁹ bits per second. File sizes are in bytes, so 100 Gbps = 12.5 GB/s; a test guards
+  against the factor-of-8 mix-up.
+- **DAG.** Directed acyclic graph: tasks joined by "must finish before" edges, with no cycles.
+- **Critical path.** The longest chain of dependent tasks; the workflow cannot finish sooner even
+  with an infinitely fast network.
+- **Slack.** How long something can slip without missing its deadline. For a transfer: deadline
+  minus earliest possible arrival.
+- **Deadline D.** The synthetic workflow deadline, 1.5 × the critical path. Scenario times are
+  fractions of D, and results are often reported as × D.
+- **MCP (Model Context Protocol).** A standard protocol for clients, including AI agents, to
+  discover and call tools on a server.
+- **Tool call.** One request to a tool, such as `get_paths(CERN, UCSD)`, and its answer.
+- **Digital twin.** A software model of a system used for what-if runs; here, the simulated network
+  plus the workflow's tasks.
+- **Baseline.** The simple reference method: lowest-delay routes, no reactions.
+- **Ablation.** A variant with one ingredient added or removed to measure that ingredient.
+  `baseline_reroute` adds only rerouting; `agents_static` removes the agents' reactions.
+- **Seed.** The starting number of a random number generator; the same seed gives the same run.
+- **Determinism.** Identical inputs give identical outputs in any process. Python's string `hash()`
+  and set iteration order are avoided, and all random numbers are drawn up front.
+- **Replay.** Re-running a recorded run from its log, without the original planner, and checking the
+  result is identical.
+- **Persistence forecast.** A forecast that assumes the present continues: capacities stay, down
+  links stay down, nothing new happens.
+- **Paired comparison.** Comparing two planners on the same seed (same placement, noise and events)
+  and counting wins, which takes luck out of the comparison.
 
 ---
 
-## 7. How to run it, read the results, and change a scenario
-
-**Run:** see the README. In short:
+## 7. Running, reading results, changing a scenario
 
 ```bash
 python scripts/run_experiments.py
@@ -415,22 +272,17 @@ python scripts/make_plots.py
 pytest -q
 ```
 
-**Read the results.**
-- **`results/table.md`.** The per-cell table first, then the paired comparisons (negative Δ = agents
-  faster, and how many seeds of 10 they won), then the ablation.
-- **`results/key_findings.md`.** The six sentences.
-- **`results/summary.csv`.** One row per run.
-- **A single run.** `results/manifests/<run_id>.json` holds its settings and metrics, and
-  `zcat < results/logs/<run_id>.jsonl.gz | head` shows its decisions.
+`results/table.md` starts with the per-cell table, then paired comparisons (negative Δ means the
+agents were faster, with the number of seeds out of 10 they won), then the supplementary sections.
+`results/key_findings.md` has the generated findings and `results/summary.csv` one row per run. For
+a single run, `results/manifests/<run_id>.json` holds settings and metrics, and
+`zcat < results/logs/<run_id>.jsonl.gz | head` shows its first decisions.
 
-**Change a scenario.**
-1. Edit `configs/scenarios.yaml`, for example change `link: [StarLight, Caltech]` to
-   `link: [FNAL, UCSD]`, or `end_frac: 0.75` to `0.4`.
-2. Re-run the four commands above.
-
-Because `experiment.yaml` is frozen, a change like this is a *new experiment*: say so and keep the
-old results for comparison. To add a brand-new scenario, add it to `scenarios.yaml` and to the
-`scenarios:` list in `experiment.yaml`. To try only one cell quickly:
+To change a scenario, edit `configs/scenarios.yaml` (for example `link: [StarLight, Caltech]` to
+`link: [FNAL, UCSD]`, or `end_frac: 0.75` to `0.4`) and run the commands above. Since
+`experiment.yaml` is frozen for the reported results, a change like this is a new experiment, and the
+old results are worth keeping for comparison. A new scenario goes in `scenarios.yaml` and in the
+`scenarios:` list of `experiment.yaml`. One cell can be run on its own:
 
 ```bash
 python scripts/run_experiments.py --workflows montage-01d --scenarios link_failure --seeds 0 1 2
@@ -438,211 +290,109 @@ python scripts/run_experiments.py --workflows montage-01d --scenarios link_failu
 
 ---
 
-## 8. Questions you may be asked (with short, honest answers)
+## 8. Design notes
 
-1. **Why not real network data?**
-   I had no access to real network telemetry, and the trial rules said public data only. The
-   traces are real; the network is clearly labeled synthetic. The interfaces (the topology file, the
-   twin view, the tools) are where real data would plug in.
+**Why a synthetic network.** No real telemetry was available, and the project uses public data only.
+The topology file, `TwinView` and the tool functions are the places where real data would plug in.
 
-2. **Isn't this just rerouting?**
-   Partly, and I measured how much. Under the link failure, plain rerouting recovers 83% of the
-   agents' improvement on 1000Genome 8ch and 53% on Montage 0.1°. But rerouting does nothing for
-   congestion: on 1000Genome 8ch both baselines take 1.17 D, the agents 0.83 D.
+**How much of the benefit is just rerouting.** Under the link failure, plain rerouting recovers 83%
+of the agents' improvement on 1000Genome 8ch and 53% on Montage 0.1°. Rerouting does nothing for
+congestion, where both baselines take 1.17 D on 1000Genome 8ch and the agents 0.83 D.
 
-3. **Then where does the agents' advantage come from?**
-   Two places.
-   - **Planning up front.** By spreading big transfers over parallel routes they are already 16%
-     faster than the baseline on 1000Genome 8ch with no events at all.
-   - **Reacting.** The `agents_static` ablation (same initial plan, no reactions) takes 1.03 D
-     under congestion and 1.34 D under the failure on 1000Genome 8ch, versus 0.83 D and 0.80 D
-     when the agents react.
+**Planning versus reacting.** With no events at all the agents are already 16% faster than the
+baseline on 1000Genome 8ch, from spreading large transfers over parallel routes. The `agents_static`
+ablation keeps that initial plan but never reacts, and it takes 1.03 D under congestion and 1.34 D
+under the failure, against 0.83 D and 0.80 D when the agents react.
 
-4. **Did the agents ever lose?**
-   Not on the result workflows (0 of 120 paired comparisons). But on the small dev Montage workflow
-   used for tuning, they were slightly slower than the baseline in normal and congestion. Their
-   start-of-run forecast sometimes chose a rebalanced plan that ran slower. That is in the key
-   findings.
+**Where the agents lost.** On the result workflows, never: 0 of 120 paired comparisons. On the small
+dev Montage workflow used for tuning they were slightly slower than the baseline in normal and
+congestion, because the start-of-run forecast sometimes chose a rebalanced plan that then ran slower.
 
-5. **How do you know the agents didn't cheat?**
-   Four checks:
-   - **No access to the simulator.** They only reach the twin through MCP tools, and an AST test
-     checks the agent code imports nothing from the simulator, network model or configs, and never
-     reads the view directly.
-   - **Tools show only the present.** A test shows a failure scheduled in the future doesn't change
-     `simulate_plan`'s output.
-   - **Same conditions for everyone.** All planners get the same seeds and the same validation.
-   - **No tuning on the evaluation.** Settings were frozen before the evaluation seeds were run.
+**Ruling out cheating.** Planners reach the twin only through MCP tools, and an AST test checks that
+agent code imports nothing from the simulator, network model or configs and never reads the view
+directly. A test shows that a failure scheduled in the future leaves `simulate_plan` unchanged. All
+planners share seeds and validation, and every setting was frozen before the evaluation seeds ran.
 
-6. **How would this plug into SciNet's digital twin?**
-   Replace `Simulator` behind `TwinView` with SciNet's twin (or a real network's telemetry), keeping
-   the same tool functions and MCP server. The agents wouldn't change, because they only see tools.
+**Connecting to a larger digital twin.** Swap the `Simulator` behind `TwinView` for another twin or
+for live telemetry and keep the tool functions and MCP server; the agents only ever see the tools.
 
-7. **Where would an LLM actually help?**
-   I tested it (`python scripts/run_llm.py`; the "LLM mode" section of `results/table.md`).
-   - **How it works.** The same agents do the analysis through the same MCP tools. Then Claude
-     (Claude Opus 5.5) makes the coordinator's final call, one API call per plan or event. Every
-     answer is validated, and the run falls back to the rules if an answer is unusable.
-   - **What happened.** Claude agreed with the rule coordinator in most decisions. It found a
-     slightly better initial plan on a few 1000Genome seeds, and it was a wash on Montage.
-   - **Where an LLM could matter more.** In situations the rules don't cover: text maintenance
-     notices, partial outages, explaining decisions to operators, or many workflows with fairness
-     trade-offs.
-   - **Reproducibility.** The API can no longer be set to temperature 0, so runs come out
-     differently each time. The logs keep every prompt and answer, and all LLM runs replay exactly
-     without calling the API.
+**LLM mode.** `python scripts/run_llm.py`, reported in the "LLM mode" section of `results/table.md`.
+The same agents do the analysis through the same tools, then Claude (Claude Opus 5.5) makes the
+coordinator's final call with one API call per plan or event. Answers are validated, with a fallback
+to the rules. Claude agreed with the rule coordinator in most decisions, found a slightly better
+initial plan on a few 1000Genome seeds, and made no difference on Montage. The API no longer accepts
+a temperature setting, so these runs vary from one execution to the next; the logs keep every prompt
+and answer, and all LLM runs replay exactly without calling the API. Situations the rules do not
+cover (maintenance notices written as text, partial outages, explaining decisions to operators,
+fairness across many workflows) are where an LLM might add more.
 
-8. **What happens with 100 competing workflows?**
-   Not tested. I tested **two**: 1000Genome 8ch and Montage 0.1° sharing the normal network at once
-   (`python scripts/run_competing.py`; the last section of `results/table.md`). The agents were
-   faster for both workflows on every seed and met both deadlines far more often than the
-   baselines. But the small, short-deadline Montage still suffers most, because nothing in the
-   agents is about fairness *between* workflows. With 100 workflows that would be the main
-   problem to solve.
+**Competing workflows.** Tested with two (`python scripts/run_competing.py`; last section of
+`results/table.md`): 1000Genome 8ch and Montage 0.1° on the normal network at once. The agents were
+faster for both workflows on every seed and met both deadlines far more often than the baselines,
+but the small, short-deadline Montage still suffered most. Nothing in the agents handles fairness
+between workflows, and with many workflows that becomes the central problem.
 
-9. **Why these two workflows?**
-   1000Genome is data-heavy and wide; Montage has many small files in phases. They behave very
-   differently on the network, which made the comparison more honest.
+**Workflow choice.** 1000Genome is wide and data-heavy; Montage moves many small files in phases.
+They stress the network differently.
 
-10. **Why multiply file sizes (`data_scale`)?**
-    At real sizes the files barely load a 100 Gbps network, so nothing interesting happens. I chose
-    the scale by a fixed rule before agents existed: the largest value where the baseline still
-    meets the deadline in `normal`.
+**File-size scaling.** At real sizes the traces barely load a 100 Gbps network. `data_scale` is the
+largest value from a fixed list at which the baseline still meets the deadline in `normal`, chosen
+before any agent existed.
 
-11. **Why doesn't congestion affect Montage?**
-    Montage moves a little data at the start and most of it after about 0.5 D, when the surge is
-    already over. I tried moving the surge to the busiest link and raising it to the cap. It still
-    didn't matter, so I reported it instead of making the scenario harsher.
+**Montage and congestion.** Montage moves a little data at the start and most of it after about
+0.5 D, when the surge is over. Moving the surge to the busiest link and raising it to the load cap
+did not change that, so the scenario was left as configured and the result reported.
 
-12. **Why is the baseline so bad under the link failure?**
-    It never reroutes. Transfers wait on the dead link, time out every 0.1 D, and restart, and
-    anything downstream waits too (see the life of one transfer).
+**The baseline under failure.** It never reroutes. Transfers wait on the dead link, time out every
+0.1 D, restart, and everything downstream waits with them.
 
-13. **Why did rerouting do worse on the dev Montage under failure than doing nothing?**
-    Every stuck transfer moved to the same backup route at once and jammed it. On the result
-    Montage workflow, rerouting still left late transfers that the agents avoided by spreading and
-    prioritizing.
+**Rerouting piling onto one route.** On dev Montage under failure, rerouting was worse than doing
+nothing because every stuck transfer moved to the same backup route at once. On the result Montage
+workflow it still left late transfers that the agents avoided by spreading and prioritizing.
 
-14. **What is `simulate_plan` exactly?**
-    It copies the twin's present state into a new simulator where capacities are frozen at today's
-    values, down links stay down, and there are no future events. Then it runs the plan to the end.
+**`simulate_plan`.** It copies the present state into a new simulator with capacities frozen at
+current values, down links kept down, and no future events, then runs the plan to the end. That is
+the simplest forecast that provably cannot see the future; forecasts that expect outages to end are
+an obvious improvement.
 
-15. **Isn't a persistence forecast unrealistic?**
-    Yes. It's the simplest forecast that provably can't see the future. Better forecasts (for
-    example, "outages usually last N minutes") are a clear next step.
+**Determinism.** One seeded RNG per run with all draws made up front, sha256 instead of `hash()`, no
+dependence on set order, no wall clock, fixed tie-breaking. Tests run the same code in two
+processes with different `PYTHONHASHSEED` values and compare the output.
 
-16. **How do you make runs deterministic?**
-    - one seeded RNG per run, with all random draws made up front;
-    - sha256 instead of `hash()`;
-    - no set-order dependence;
-    - no wall clock;
-    - fixed tie-breaking.
+**What replay shows.** That the log is complete: the logged decisions alone reproduce every metric
+of all 180 runs, the property an audit of an autonomous system needs.
 
-    Tests run the same code in two processes with different `PYTHONHASHSEED`s and compare outputs.
+**Deadlines.** D = 1.5 × the critical path. A transfer's deadline is the latest start time of the
+first task at the destination that needs the file.
 
-17. **What does replay prove?**
-    That the log is complete. The logged decisions alone reproduce every metric of all 180 runs.
-    That's what you'd want for auditing an autonomous system.
+**Late transfers and completion time.** A late transfer marks a missed hand-off; completion time
+captures the end-to-end effect. Both are reported.
 
-18. **How are deadlines defined?**
-    D = 1.5 × the critical path. Each transfer's deadline is the latest start time of the first task
-    at the destination that needs the file (critical-path backward pass).
+**Bandwidth sharing.** Moving transfers split each link's free capacity in proportion to priority
+(2 vs. 1), and a transfer's rate is its smallest share along the route. A re-run of all 180 runs
+under max-min fair sharing (`python scripts/run_maxmin.py`) barely moved the numbers and kept the
+planners in the same order.
 
-19. **Why is "late" counted per transfer and not per workflow?**
-    A late transfer is where a missed hand-off happens. The workflow's completion time captures the
-    end-to-end effect. We report both.
+**Seeds.** Ten seeds show consistent paired wins (120 of 120) but are too few for fine-grained
+claims; standard deviations are in the table.
 
-20. **How is bandwidth shared between transfers?**
-    On each link, moving transfers split the free capacity in proportion to priority (2 vs. 1). A
-    transfer's speed is its smallest share along its route. That's simpler than real TCP. To check
-    it doesn't drive the conclusions, I re-ran all 180 runs with max-min fair sharing
-    (`python scripts/run_maxmin.py`), where leftover capacity goes to other transfers. The results
-    barely moved and the planners kept the same order (supplementary table in
-    `results/table.md`).
+**Tuning.** `data_scale` on the baseline only with tuning seeds 100–104; three agent parameters on
+the two small workflows with the same seeds; evaluation on seeds 0–9 of the two large workflows.
+Both tuning steps are scripts with their outputs in `results/tuning/`.
 
-21. **Why 10 seeds? Is that enough?**
-    It's enough to see consistent paired wins (the agents won 120 of 120 comparisons), but not
-    enough for fine-grained claims. The standard deviations are in the table.
+**Changes from the original plan.** Logged with reasons and checks under "Deviations" in
+`docs/BUILD_LOG.md`. The largest are the event-driven simulator, the coordinator also considering
+the simple plan, the `agents_static` ablation, and a late timeout fix after which everything was
+re-run.
 
-22. **What did you tune, and on what?**
-    - **Network:** `data_scale`, on the baseline only, tuning seeds 100–104.
-    - **Agents:** three parameters, on the two small workflows only, the same tuning seeds.
-    - **Evaluation:** seeds 0–9 on the two large workflows, never tuned on.
+**The MCP server when agents run in-process.** The agents still call through MCP, so nothing they do
+bypasses the tool interface, and the same server works over stdio for any MCP client
+(`scripts/mcp_demo_client.py`, the MCP Inspector).
 
-    Both tunings are reproducible scripts with their outputs in `results/tuning/`.
+**Relation to FTS or Globus.** Those systems execute transfers. This prototype plans them using the
+workflow's deadlines and the network's state and records why; a planner like it could sit in front of
+such a system.
 
-23. **What changed from the original plan, and why?**
-    Every change is logged under "Deviations" in `docs/BUILD_LOG.md` with how to check it. The
-    biggest:
-    - an exact event-driven simulator;
-    - the coordinator also considering the simple plan;
-    - the `agents_static` ablation;
-    - a timeout bug I found late and fixed (I re-ran everything).
-
-24. **How long does it take to run?**
-    The 180 runs take seconds on a laptop, and replay is similar. See the build log for the
-    measured times.
-
-25. **What's the MCP server for, if the agents run in-process?**
-    It proves the tools are a complete, standard interface. The same server works over stdio for any
-    MCP client (`scripts/mcp_demo_client.py`, the MCP Inspector). The agents use it even in-process,
-    so nothing they do bypasses it.
-
-26. **How is this different from a real transfer system like FTS or Globus?**
-    Those *execute* transfers. This prototype is about *planning* them with knowledge of the
-    workflow's deadlines and the network's state, and about recording why. A planner like this could
-    sit in front of such a system.
-
-27. **What would you do next?**
-    - two workflows competing;
-    - forecasts that know events end;
-    - an LLM coordinator that calls the MCP tools itself, on more seeds;
-    - a real topology if available.
-
-28. **What part did the AI coding assistant do?**
-    I designed and directed the project, decided what to test, and checked the results. An AI coding
-    assistant (Claude Code) wrote the code under my direction. Every decision and deviation is
-    recorded in the build log, and I can explain every part.
-
----
-
-## 9. The 2-minute and 30-second versions
-
-**2 minutes (spoken):**
-
-> Scientific workflows like 1000Genome run as chains of tasks spread over sites, so files
-> constantly cross the network, and a late file stalls everything after it. I took real public
-> traces of 1000Genome and Montage, worked out every file each workflow must move, how big it is,
-> and when it's needed, and ran those transfers over a simulated network with changing background
-> traffic, a congestion surge and a link failure.
->
-> Three agents plan the transfers:
-> - a workflow agent that knows which files are urgent;
-> - a network agent that knows the routes and current capacity;
-> - a coordinator that combines them, tests candidate plans in a forecast, and reacts to events.
->
-> They can only see the network through tools on an MCP server, and the tools show only the
-> present, never the future. Every decision is logged, and all 180 runs replay exactly from their
-> logs.
->
-> I compared the agents to a simple baseline and to a rerouting-only version on the same seeds.
-> - **Link failure:** plain rerouting already gets a large share of the benefit — about 83% on
->   1000Genome.
-> - **Congestion:** rerouting does nothing and only the coordinated agents help. On 1000Genome they
->   finish at 0.83 of the deadline versus 1.17.
-> - **Planning vs. reacting:** part of the agents' edge is just better planning up front, and an
->   ablation shows how much comes from reacting to events.
-> - **Where they lost:** on one small workflow used for tuning, the agents were slightly worse than
->   the baseline, because their simple forecast misled them.
->
-> The network is synthetic and the agents are rules, not an LLM, so the next steps are competing
-> workflows, better forecasts, and testing an LLM coordinator against these rules.
-
-**30 seconds:**
-
-> I turned real workflow traces into data transfers and ran them over a simulated network with
-> congestion and a link failure. Three agents plan the transfers using tools on an MCP server, and
-> every decision is logged and replays exactly. Against a simple baseline on the same seeds, simple
-> rerouting fixes most of an outage, but only the coordinated agents fix congestion, finishing at
-> 0.83 of the deadline instead of 1.17. Part of their edge is just better up-front planning, and I
-> report where they lost.
+**Next steps.** Many workflows competing with fairness rules, forecasts that expect events to end,
+an LLM coordinator that calls the MCP tools itself and is tested on more seeds, and a real topology
+if one becomes available.

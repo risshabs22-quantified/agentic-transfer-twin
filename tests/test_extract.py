@@ -1,4 +1,4 @@
-"""Part 1 acceptance tests (CLAUDE.md section 8)."""
+"""Part 1 acceptance tests: transfer counts, GB moved and deadlines for the four traces."""
 import pytest
 
 from att.extract import extract_transfers, latest_start_times, load_instance, place_tasks, summarize

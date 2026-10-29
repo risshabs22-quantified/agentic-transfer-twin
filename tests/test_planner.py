@@ -1,4 +1,4 @@
-"""Plan validation (CLAUDE.md section 10)."""
+"""Plan validation."""
 from att.network import Link, Topology
 from att.planner import validate_entry, validate_plan
 
