@@ -46,7 +46,7 @@ SUMMARY_FIELDS = ["completed", "completion_s", "failed_attempts", "failed_transf
 class _Transfer:
     """Mutable run-time state of one transfer."""
     __slots__ = ("idx", "id", "file", "bytes", "src", "dst", "after_task", "deadline_s",
-                 "path", "links", "delay_s", "priority", "start_s",
+                 "path", "links", "delay_s", "priority", "start_s", "timeout", "workflow",
                  "status", "remaining", "stall", "rate", "failed_attempts",
                  "ready_t", "sent_t", "arrive_t")
 
@@ -92,7 +92,12 @@ class Simulator:
         self.workflow = workflow
         self.topo = topo
         self.D = float(workflow["deadline_s"])
-        self.dt = float(dt) if dt is not None else self.D / steps_per_deadline
+        # Several workflows sharing the network (stretch goal): each keeps its own deadline D_i.
+        # Capacity is re-sampled on the SHORTEST workflow's grid and each transfer times out after
+        # 0.1 x its own workflow's D, so neither workflow is judged on the other's clock.
+        self.members: dict[str, float] = {k: float(v["deadline_s"]) for k, v in workflow.get("members", {}).items()}
+        grid_D = min(self.members.values()) if self.members else self.D
+        self.dt = float(dt) if dt is not None else grid_D / steps_per_deadline
         self.max_time = max_time_frac * self.D
         self.timeout = timeout_frac * self.D
         self.seed = seed
@@ -138,6 +143,8 @@ class Simulator:
             x.ready_t = 0.0 if tr["after_task"] is None else math.nan
             x.sent_t = x.arrive_t = math.nan
             x.path, x.links, x.delay_s, x.priority, x.start_s = [], [], 0.0, 1, 0.0
+            x.workflow = tr.get("workflow")
+            x.timeout = timeout_frac * (self.members[x.workflow] if x.workflow in self.members else self.D)
             self.transfers.append(x)
             self.by_id[x.id] = x
             by_after.setdefault(tr["after_task"], []).append(i)
@@ -331,7 +338,7 @@ class Simulator:
             # 3. transfers STILL stalled that just hit the timeout: the attempt fails. (If the link came
             #    back at this same instant, the transfer is no longer stuck, so it does not fail.)
             for x in self.transfers:
-                if x.status == ACTIVE and x.stall >= self.timeout * (1 - 1e-12) and self._stalled(x):
+                if x.status == ACTIVE and x.stall >= x.timeout * (1 - 1e-12) and self._stalled(x):
                     x.failed_attempts += 1
                     x.remaining, x.stall = x.bytes, 0.0
                     progressed = True
@@ -390,8 +397,8 @@ class Simulator:
             for x in active:
                 if x.rate > 0 and self.t + x.remaining / x.rate <= self.t:
                     x.remaining, snapped = 0.0, True
-                elif x.rate == 0 and self.t + (self.timeout - x.stall) <= self.t:
-                    x.stall, snapped = self.timeout, True
+                elif x.rate == 0 and self.t + (x.timeout - x.stall) <= self.t:
+                    x.stall, snapped = x.timeout, True
             if snapped:
                 continue
             nxt = self.stop_time
@@ -403,7 +410,7 @@ class Simulator:
                 if x.rate > 0:
                     nxt = min(nxt, self.t + x.remaining / x.rate)
                 else:
-                    nxt = min(nxt, self.t + (self.timeout - x.stall))
+                    nxt = min(nxt, self.t + (x.timeout - x.stall))
             if not active and not self.heap:
                 break  # nothing can ever happen again (should not occur with valid inputs)
             step = nxt - self.t
@@ -473,7 +480,22 @@ class Simulator:
             "tasks_done": self.tasks_done,
             "transfers_arrived": len(arrived),
             "rejected_entries": self.rejections,
+            **self._member_metrics(),
         }
+
+    def _member_metrics(self) -> dict[str, Any]:
+        """Per-workflow completion and lateness when several workflows share the network."""
+        out: dict[str, Any] = {}
+        for name, D in self.members.items():
+            tasks = [k for k in self.tasks.values() if k.id.startswith(name + "/")]
+            done = all(k.status == "done" for k in tasks)
+            comp = max(k.finish_t for k in tasks) if done else math.nan
+            trs = [x for x in self.transfers if x.workflow == name]
+            out[f"{name}:completion_s"] = comp
+            out[f"{name}:completion_D"] = comp / D if done else math.nan
+            out[f"{name}:late"] = sum(1 for x in trs if x.status != ARRIVED or x.arrive_t > x.deadline_s)
+            out[f"{name}:failed_transfers"] = sum(1 for x in trs if x.failed_attempts > 0)
+        return out
 
     # ------------------------------------------------------------------------------ forecasts
 
@@ -488,6 +510,7 @@ class Simulator:
         c = Simulator.__new__(Simulator)
         c.workflow, c.topo, c.D, c.dt = self.workflow, self.topo, self.D, self.dt
         c.max_time, c.timeout, c.seed, c.settings = self.max_time, self.timeout, self.seed, dict(self.settings)
+        c.members = self.members
         c._load = None
         c._const_free = self.free_now()
         c.t, c.cell = self.t, self.cell

@@ -12,7 +12,7 @@ from dataclasses import asdict
 from typing import Any
 
 from att import config
-from att.extract import extract_transfers
+from att.extract import extract_transfers, merge_workflows
 from att.network import Background, Link, Topology, parse_event
 from att.planner import Planner
 from att.simulator import Simulator
@@ -60,12 +60,39 @@ def run_settings(exp: dict[str, Any], workflow: str, scenario: str, seed: int, p
     }
 
 
+COMPETING = "competing_workflows"
+
+
+def competing_settings(exp: dict[str, Any], seed: int, planner: str = "baseline") -> dict[str, Any]:
+    """Stretch goal: both result workflows share the network at the same time (normal background,
+    no scripted events). Each keeps its own frozen data_scale and its own deadline."""
+    members = [w for w, v in exp["workflows"].items() if v["role"] == "result"]
+    base = run_settings(exp, members[0], "normal", seed, planner=planner)
+    base.update({
+        "workflow": "both", "scenario": COMPETING, "events": [],
+        "members": [{"workflow": w, "workflow_file": exp["workflows"][w]["file"],
+                     "workflow_sha256": _sha256(config.workflow_path(exp, w)),
+                     "data_scale": exp["workflows"][w]["data_scale"]} for w in members],
+    })
+    for k in ("workflow_file", "workflow_sha256", "data_scale"):
+        base.pop(k)
+    return base
+
+
+def _extract(s: dict[str, Any], workflow_file: str, sha: str, data_scale: float) -> dict[str, Any]:
+    path = config.ROOT / workflow_file
+    if _sha256(path) != sha:
+        raise ValueError(f"{workflow_file} has changed since this run was recorded")
+    return extract_transfers(path, s["sites"], s["source_site"], s["slack"], seed=s["seed"], data_scale=data_scale)
+
+
 def sim_from_settings(s: dict[str, Any]) -> Simulator:
     """Rebuild a run's simulator from its settings dict alone."""
-    path = config.ROOT / s["workflow_file"]
-    if _sha256(path) != s["workflow_sha256"]:
-        raise ValueError(f"{s['workflow_file']} has changed since this run was recorded")
-    ex = extract_transfers(path, s["sites"], s["source_site"], s["slack"], seed=s["seed"], data_scale=s["data_scale"])
+    if "members" in s:
+        ex = merge_workflows([(m["workflow"], _extract(s, m["workflow_file"], m["workflow_sha256"], m["data_scale"]))
+                              for m in s["members"]])
+    else:
+        ex = _extract(s, s["workflow_file"], s["workflow_sha256"], s["data_scale"])
     topo = Topology(sites=list(s["topology"]["sites"]),
                     links=[Link(x["a"], x["b"], float(x["gbps"]), float(x["ms"])) for x in s["topology"]["links"]])
     events = [parse_event(e) for e in s["events"]]

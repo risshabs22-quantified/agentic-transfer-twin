@@ -160,3 +160,43 @@ def summarize(extracted: dict[str, Any]) -> dict[str, Any]:
         "gb_moved": sum(t["bytes"] for t in extracted["transfers"]) / 1e9,
         "deadline_s": extracted["deadline_s"],
     }
+
+
+def merge_workflows(parts: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]:
+    """Combine several extracted workflows into one, so they share the network at the same time.
+
+    Every task id and file id is prefixed with "<name>/" so nothing collides; each transfer and
+    task remembers which workflow it belongs to; each workflow keeps its own deadline under
+    "members". The combined "deadline_s" is the longest of them (it only sets the max run time).
+    """
+    def pre(name: str, x: str | None) -> str | None:
+        return None if x is None else f"{name}/{x}"
+
+    tasks: dict[str, Any] = {}
+    transfers: list[dict[str, Any]] = []
+    file_bytes: dict[str, int] = {}
+    placement: dict[str, str] = {}
+    members: dict[str, Any] = {}
+    sources = {ex["source_site"] for _, ex in parts}
+    if len(sources) != 1:
+        raise ValueError("all workflows must share one source site")
+    for name, ex in parts:
+        members[name] = {"workflow": ex["workflow"], "deadline_s": ex["deadline_s"], "data_scale": ex["data_scale"]}
+        for tid, t in ex["tasks"].items():
+            tasks[pre(name, tid)] = {**t, "parents": [pre(name, p) for p in t["parents"]],
+                                     "children": [pre(name, c) for c in t["children"]],
+                                     "inputs": [pre(name, f) for f in t["inputs"]],
+                                     "outputs": [pre(name, f) for f in t["outputs"]], "workflow": name}
+            placement[pre(name, tid)] = ex["placement"][tid]
+        for tr in ex["transfers"]:
+            f = pre(name, tr["file"])
+            transfers.append({**tr, "id": f"{f}@{tr['dst']}", "file": f, "after_task": pre(name, tr["after_task"]),
+                              "workflow": name})
+        file_bytes.update({pre(name, f): b for f, b in ex["file_bytes"].items()})
+    return {
+        "workflow": "+".join(name for name, _ in parts),
+        "deadline_s": max(ex["deadline_s"] for _, ex in parts),
+        "transfers": transfers, "placement": placement, "tasks": tasks, "file_bytes": file_bytes,
+        "data_scale": None, "slack": parts[0][1]["slack"], "seed": parts[0][1]["seed"],
+        "source_site": sources.pop(), "members": members,
+    }

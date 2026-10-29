@@ -103,7 +103,35 @@ def make_table(df: pd.DataFrame, abl: pd.DataFrame | None) -> str:
                 L.append(f"| {NICE[w]} | {NICE[s]} | {pm(st.completion_D, '.3f')} | {pm(ag.completion_D, '.3f')} | "
                          f"{st.late.mean():.1f} / {ag.late.mean():.1f} | {st.failed_transfers.mean():.1f} / "
                          f"{ag.failed_transfers.mean():.1f} |")
+    comp_path = RESULTS / "competing" / "summary.csv"
+    if comp_path.exists():
+        L += competing_section(pd.read_csv(comp_path))
     return "\n".join(L) + "\n"
+
+
+def competing_section(c: pd.DataFrame) -> list[str]:
+    """Stretch goal 2: both result workflows share the normal network at once (30 runs)."""
+    wfs = [k.split(":")[0] for k in c.columns if k.endswith(":completion_D")]
+    L = ["", "**Supplementary: competing workflows** (not part of the 180 main runs). "
+         + " and ".join(NICE[w] for w in wfs) + " start together on the `normal` network; each keeps its "
+         "own data_scale and deadline D. Completion is shown as a fraction of each workflow's own D. "
+         "Same evaluation seeds; nothing tuned.", "",
+         "| Planner | " + " | ".join(f"{NICE[w]} completion (× its D) | {NICE[w]} late" for w in wfs)
+         + " | Runs where every workflow met its D |",
+         "|---|" + "---|---|" * len(wfs) + "---|"]
+    for p in PLANNERS:
+        r = c[c.planner == p]
+        met = sum(all(row[f"{w}:completion_D"] <= 1.0 for w in wfs) for _, row in r.iterrows())
+        L.append(f"| {p} | " + " | ".join(f"{pm(r[f'{w}:completion_D'], '.3f')} | {r[f'{w}:late'].mean():.1f}"
+                                          for w in wfs) + f" | {met}/{len(r)} |")
+    a = c[c.planner == "agents"].set_index("seed")
+    for b in ("baseline", "baseline_reroute"):
+        o = c[c.planner == b].set_index("seed")
+        wins = " and ".join(f"{int((a[f'{w}:completion_s'] < o[f'{w}:completion_s']).sum())}/{len(a)} seeds for {NICE[w]}"
+                            for w in wfs)
+        L.append("")
+        L.append(f"Agents vs. {b}: faster on {wins}.")
+    return L
 
 
 def m(df, w, s, p, col="completion_D"):

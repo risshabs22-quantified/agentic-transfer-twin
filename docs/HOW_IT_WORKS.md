@@ -462,9 +462,12 @@ python scripts/run_experiments.py --workflows montage-01d --scenarios link_failu
    It would need to beat these rules on the same seeds, with every call logged.
 
 8. **What happens with 100 competing workflows?**
-   Not tested here. This prototype runs one workflow at a time; the next step is a scenario where
-   two workflows share the network. The coordinator's projected-load idea extends naturally, but
-   fairness between workflows would need new rules.
+   Not tested. I tested **two**: 1000Genome 8ch and Montage 0.1° sharing the normal network at once
+   (`python scripts/run_competing.py`; the last section of `results/table.md`). The agents were
+   faster for both workflows on every seed and met both deadlines far more often than the
+   baselines. But the small, short-deadline Montage still suffers most, because nothing in the
+   agents is about fairness *between* workflows. With 100 workflows that would be the main
+   problem to solve.
 
 9. **Why these two workflows?**
    1000Genome is data-heavy and wide; Montage has many small files in phases. They behave very

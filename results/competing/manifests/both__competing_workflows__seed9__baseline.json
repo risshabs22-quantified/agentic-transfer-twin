@@ -1,0 +1,138 @@
+{
+ "run_id": "both__competing_workflows__seed9__baseline",
+ "settings": {
+  "workflow": "both",
+  "scenario": "competing_workflows",
+  "seed": 9,
+  "planner": "baseline",
+  "mode": "rule",
+  "planner_params": {},
+  "sites": [
+   "Caltech",
+   "UCSD",
+   "FNAL",
+   "ORNL"
+  ],
+  "source_site": "CERN",
+  "slack": 1.5,
+  "simulator": {
+   "steps_per_deadline": 1000,
+   "max_time_frac": 20,
+   "timeout_frac": 0.1
+  },
+  "background": {
+   "mean": 0.2,
+   "wave": 0.1,
+   "period_frac": 0.5,
+   "noise": 0.05,
+   "interval_frac": 0.005
+  },
+  "events": [],
+  "topology": {
+   "sites": [
+    "CERN",
+    "StarLight",
+    "FNAL",
+    "Caltech",
+    "UCSD",
+    "ORNL"
+   ],
+   "links": [
+    {
+     "a": "CERN",
+     "b": "StarLight",
+     "gbps": 400.0,
+     "ms": 90.0
+    },
+    {
+     "a": "StarLight",
+     "b": "FNAL",
+     "gbps": 400.0,
+     "ms": 2.0
+    },
+    {
+     "a": "StarLight",
+     "b": "Caltech",
+     "gbps": 100.0,
+     "ms": 50.0
+    },
+    {
+     "a": "StarLight",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "FNAL",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "Caltech",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 5.0
+    },
+    {
+     "a": "FNAL",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 55.0
+    }
+   ]
+  },
+  "members": [
+   {
+    "workflow": "1000genome-8ch",
+    "workflow_file": "data/raw/1000genome-chameleon-8ch-100k-001.json",
+    "workflow_sha256": "6b62bf9b7a773988e31dadd6f39f389f62b0abedfaa46eec889f6992c0314f2f",
+    "data_scale": 100
+   },
+   {
+    "workflow": "montage-01d",
+    "workflow_file": "data/raw/montage-chameleon-2mass-01d-001.json",
+    "workflow_sha256": "7f615b37a39ea359a7b33eb80dd26a0e89764343b2ed8e18109a4e6fe871c977",
+    "data_scale": 300
+   }
+  ]
+ },
+ "metrics": {
+  "completed": true,
+  "completion_s": 576.2832832687651,
+  "failed_attempts": 0,
+  "failed_transfers": 0,
+  "late": 3,
+  "n_transfers": 421,
+  "gb_moved": 4102.2392186,
+  "avg_gbps": 56.947537264402115,
+  "data_wait_s": 12549.08238511477,
+  "reroutes": 0,
+  "decisions": 1,
+  "end_s": 576.2832832687651,
+  "deadline_D_s": 601.916,
+  "tasks_done": 311,
+  "transfers_arrived": 421,
+  "rejected_entries": 0,
+  "1000genome-8ch:completion_s": 576.2832832687651,
+  "1000genome-8ch:completion_D": 0.9574147942051134,
+  "1000genome-8ch:late": 0,
+  "1000genome-8ch:failed_transfers": 0,
+  "montage-01d:completion_s": 34.33573814317018,
+  "montage-01d:completion_D": 1.0837274924461124,
+  "montage-01d:late": 3,
+  "montage-01d:failed_transfers": 0
+ },
+ "log": "competing/logs/both__competing_workflows__seed9__baseline.jsonl.gz",
+ "git_commit": "0313ef5c5eb4ca224b78cc882ace2a482a3d4c2c-dirty",
+ "versions": {
+  "python": "3.12.14",
+  "networkx": "3.7",
+  "numpy": "2.5.4",
+  "pandas": "3.1.0",
+  "matplotlib": "3.11.2",
+  "PyYAML": "6.0.3",
+  "mcp": "2.3.0",
+  "pytest": "9.2.0"
+ }
+}
