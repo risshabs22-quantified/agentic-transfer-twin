@@ -8,7 +8,7 @@ Every entry says what was built, why, and the commands to verify it.
 - [x] Stage 0 — environment, requirements, data, build log
 - [x] Stage 1 — extraction (`att/extract.py`)
 - [x] Stage 2 — configs + network model (`att/network.py`)
-- [ ] Stage 3 — simulator, planner interface, baselines
+- [x] Stage 3 — simulator, planner interface, baselines
 - [ ] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
 - [ ] Stage 5 — tools, MCP server, tool client, stdio demo
 - [ ] Stage 6 — agents + event handling, agent tuning on dev workflows
@@ -23,6 +23,14 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 
 | # | Stage | What changed | Why | How to check |
 |---|---|---|---|---|
+| 1 | 3 | **Exact event-driven simulator** instead of fixed `dt` steps. Capacity is still piecewise constant on the `dt = D/1000` grid (load sampled at each cell start, exactly as specified), but the clock jumps from one interesting moment to the next (grid boundary while something is moving, task finish, arrival, planned start, scenario event, last byte sent, stall timeout). | Completion, arrival and failure times are exact for the capacity model instead of rounded up to a step; idle stretches (only tasks running) cost nothing; a full 8ch run takes ~0.03 s. | `tests/test_simulator.py::test_units_sanity` (0.81 s arrival, exact), `test_priority_shares_capacity_two_to_one` (1.2 s / 1.6 s exactly). |
+| 2 | 3 | **Stall timeout counts *consecutive* stall time**: the timer resets when the transfer moves again or is given a new path. | CLAUDE.md says stall time "accumulates" but not whether it resets; a timeout in real transfer tools (and TCP) is time without progress, so short separate stalls should not add up to a failure. | `test_stall_shorter_than_timeout_does_not_fail`, `test_failure_path_counts_transfer_once`. |
+| 3 | 3 | **Rerouting keeps the bytes already sent** (like restart markers in GridFTP); only a *failed attempt* resets to the full size, as specified. | Otherwise a reroute would be punished like a failure, which would bias against any planner that reroutes. Applies identically to every planner. | `att/simulator.py::_apply`. |
+| 4 | 3 | **Extra validation rule:** plan entries for transfers that have already sent all their bytes are rejected ("transfer already sent all its bytes"). Transfers missing from the initial plan get the default entry (lowest-delay path, priority 1, start 0). | Changing a finished transfer has no effect and would inflate `reroutes`. The default makes a partial plan safe. Both apply to every planner and to `submit_plan`. | `tests/test_planner.py`, `test_invalid_entries_rejected_and_logged`. |
+| 5 | 3 | **Every planner call is logged as a decision, including "no change"**, so `decisions` = 1 + number of events delivered. | Replay must check every event against the log (type, seq, t); logging only non-empty answers would make that impossible. | `sim.decisions` length vs. events in `test_failure_path_counts_transfer_once`. |
+| 6 | 3 | `avg_gbps` is NaN when a run doesn't complete (same as `completion_s`). Ties at one instant are processed in a fixed order: last bytes sent → arrivals → task finishes → planned starts → scenario events → timeouts. | Keeps metrics well defined and the run deterministic. | `att/simulator.py::_process_instant`. |
+| 7 | 3 | Added `att/config.py` (YAML loading) and `att/runner.py` (`build_sim`, `run_one`, `run_id`) to the layout. | One place builds a run, so experiments, tuning, tests and replay can't drift apart. | — |
+| 8 | 3 | **Float guard:** if a transfer's remaining bytes are too small to move the clock (`t + remaining/rate == t`), it is finished now. | Found while testing: a 1.7e-5-byte remainder at 10 GB/s gives a 1.6e-15 s step, which is below float resolution at t = 51 s, so the loop never advanced. | `att/simulator.py::_loop`. |
 
 ## Tuning table
 
@@ -118,4 +126,38 @@ UCSD; while it is down, the only way into {Caltech, UCSD} is the FNAL–UCSD lin
 ```bash
 python scripts/show_network.py
 pytest -q tests/test_network.py
+```
+
+### 2026-10-29 — Stage 3: simulator, planner interface, baselines
+
+**Built**
+- `att/planner.py`: `Planner` base class (`plan`, `on_event`, and a `note` dict the planner fills
+  with `agent`/`saw`/`tool_calls`/`reason` for the decision log) and `validate_entry` /
+  `validate_plan`, shared by the simulator and (later) the `submit_plan` tool.
+- `att/simulator.py`: `Simulator` (the twin) and `TwinView` (what planners see: the clock, link
+  capacity/free capacity/up-down *now*, transfer and task status, the current plan). Semantics
+  follow CLAUDE.md section 9 (see Deviations 1–6 for the details I had to choose).
+  `snapshot()` copies the present into a new simulator with constant free capacity, down links
+  kept down, no scenario events and no random numbers; `forecast(plan)` runs a plan on it.
+- `att/baseline.py`: `Baseline` and `BaselineReroute`, as specified.
+- `tests/test_simulator.py`, `tests/test_planner.py`: units sanity, failure path, stall
+  shorter than the timeout, 2:1 priority sharing, rejected entries, delayed start, baseline
+  completes 1000Genome 2ch/normal, reroute avoids the down link, forecasts don't change the
+  run, forecasts ignore future events, max-time cut-off, and cross-process determinism (two
+  `PYTHONHASHSEED`s, metrics and every decision identical).
+
+**Smoke run** (tuning seed 100, baseline / baseline_reroute; completion as a fraction of D):
+
+| Workflow | scale | normal | congestion | link_failure (base) | link_failure (reroute) |
+|---|---|---|---|---|---|
+| 1000genome-2ch | 1 | 0.668 | 0.668 | 1.240, 9 failed | 0.668 |
+| 1000genome-8ch | 100 | 0.975 | 1.151, 23 late | 1.738, 39 failed, 102 late | 1.010, 2 late |
+| montage-01d | 200 | 0.791 | 0.791 | 1.023, 43 failed | 0.891 |
+
+These are close to the prototype numbers in CLAUDE.md (≈0.99 / 1.19 / 1.71 D for 8ch; ≈0.78 /
+1.03 D for Montage, with congestion having no effect on Montage). Each run takes 0.01–0.05 s.
+
+**How to verify**
+```bash
+pytest -q tests/test_simulator.py tests/test_planner.py
 ```
