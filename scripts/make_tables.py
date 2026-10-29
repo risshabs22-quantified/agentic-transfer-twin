@@ -103,10 +103,32 @@ def make_table(df: pd.DataFrame, abl: pd.DataFrame | None) -> str:
                 L.append(f"| {NICE[w]} | {NICE[s]} | {pm(st.completion_D, '.3f')} | {pm(ag.completion_D, '.3f')} | "
                          f"{st.late.mean():.1f} / {ag.late.mean():.1f} | {st.failed_transfers.mean():.1f} / "
                          f"{ag.failed_transfers.mean():.1f} |")
+    mm_path = RESULTS / "maxmin" / "summary.csv"
+    if mm_path.exists():
+        L += maxmin_section(df, pd.read_csv(mm_path))
     comp_path = RESULTS / "competing" / "summary.csv"
     if comp_path.exists():
         L += competing_section(pd.read_csv(comp_path))
     return "\n".join(L) + "\n"
+
+
+def maxmin_section(df: pd.DataFrame, mm: pd.DataFrame) -> list[str]:
+    """Stretch goal 3: the same 180-run grid under max-min fair sharing."""
+    mm = mm.copy()
+    mm["D"] = mm.workflow.map(df.attrs["D"])
+    mm["completion_D"] = mm.completion_s / mm.D
+    L = ["", "**Supplementary: max-min fair sharing** (robustness check, not the main results). The same "
+         f"{len(mm)} runs with weighted max-min fair sharing instead of proportional sharing; nothing re-tuned. "
+         "Mean completion (× D), proportional → max-min; and the agents' paired wins under max-min.", "",
+         "| Workflow | Scenario | baseline | baseline_reroute | agents | Agents faster than baseline / baseline_reroute (max-min) |",
+         "|---|---|---|---|---|---|"]
+    for w in dict.fromkeys(df.workflow):
+        for s in SCEN_ORDER:
+            cells = [f"{m(df, w, s, p):.3f} → {m(mm, w, s, p):.3f}" for p in PLANNERS]
+            wins = [paired(mm, w, s, "agents", b) for b in ("baseline", "baseline_reroute")]
+            L.append(f"| {NICE[w]} | {NICE[s]} | " + " | ".join(cells) + " | "
+                     + " / ".join(f"{r['wins']}/{r['n']}" for r in wins) + " |")
+    return L
 
 
 def competing_section(c: pd.DataFrame) -> list[str]:

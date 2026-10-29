@@ -88,7 +88,8 @@ class Simulator:
 
     def __init__(self, workflow: dict[str, Any], topo: Topology, background: Background | None,
                  events: list[NetEvent], seed: int, *, steps_per_deadline: int = 1000,
-                 max_time_frac: float = 20.0, timeout_frac: float = 0.1, dt: float | None = None):
+                 max_time_frac: float = 20.0, timeout_frac: float = 0.1, dt: float | None = None,
+                 sharing: str = "proportional"):
         self.workflow = workflow
         self.topo = topo
         self.D = float(workflow["deadline_s"])
@@ -101,6 +102,9 @@ class Simulator:
         self.max_time = max_time_frac * self.D
         self.timeout = timeout_frac * self.D
         self.seed = seed
+        if sharing not in ("proportional", "maxmin"):
+            raise ValueError(f"unknown sharing model {sharing!r}")
+        self.sharing = sharing  # "proportional" (default, used for all main results) or "maxmin"
         self.settings = {"steps_per_deadline": steps_per_deadline, "max_time_frac": max_time_frac,
                          "timeout_frac": timeout_frac, "dt": self.dt}
         n_links = len(topo.links)
@@ -351,18 +355,53 @@ class Simulator:
         """Set every active transfer's rate for the current interval; return the active ones."""
         active = [x for x in self.transfers if x.status == ACTIVE]
         free = self.free_now()
-        weight = [0] * len(free)
-        for x in active:
-            if not self._stalled(x):
-                for i in x.links:
-                    weight[i] += x.priority
+        moving = []
         for x in active:
             if self._stalled(x):
                 x.rate = 0.0
             else:
-                x.rate = min(free[i] * x.priority / weight[i] for i in x.links)
+                moving.append(x)
                 x.stall = 0.0  # moving again: the stall timer only counts consecutive stalling
+        if self.sharing == "maxmin":
+            self._maxmin_rates(moving, free)
+            return active
+        weight = [0] * len(free)
+        for x in moving:
+            for i in x.links:
+                weight[i] += x.priority
+        for x in moving:
+            x.rate = min(free[i] * x.priority / weight[i] for i in x.links)
         return active
+
+    @staticmethod
+    def _maxmin_rates(moving: list[_Transfer], free: list[float]) -> None:
+        """Weighted max-min fair sharing (progressive filling), an optional alternative model.
+
+        Repeatedly find the link whose remaining capacity per unit of weight is smallest; every
+        unfrozen transfer through it gets weight x that share and is frozen; its rate is removed
+        from every link on its path. Unlike the default model, capacity that a transfer can't use
+        (because it is bottlenecked elsewhere) goes to the others. Ties -> lower link index.
+        """
+        cap = list(free)
+        unfrozen = list(moving)
+        while unfrozen:
+            weight = [0] * len(cap)
+            for x in unfrozen:
+                for i in x.links:
+                    weight[i] += x.priority
+            best, share = -1, math.inf
+            for i, w in enumerate(weight):
+                if w > 0 and cap[i] / w < share:
+                    best, share = i, cap[i] / w
+            still = []
+            for x in unfrozen:
+                if best in x.links:
+                    x.rate = max(share, 0.0) * x.priority
+                    for i in x.links:
+                        cap[i] -= x.rate
+                else:
+                    still.append(x)
+            unfrozen = still
 
     # ------------------------------------------------------------------------------ main loop
 
@@ -510,7 +549,7 @@ class Simulator:
         c = Simulator.__new__(Simulator)
         c.workflow, c.topo, c.D, c.dt = self.workflow, self.topo, self.D, self.dt
         c.max_time, c.timeout, c.seed, c.settings = self.max_time, self.timeout, self.seed, dict(self.settings)
-        c.members = self.members
+        c.members, c.sharing = self.members, self.sharing
         c._load = None
         c._const_free = self.free_now()
         c.t, c.cell = self.t, self.cell

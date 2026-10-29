@@ -201,3 +201,24 @@ def test_determinism_across_processes():
     a = run_python(code, hashseed="0")
     b = run_python(code, hashseed="4242")
     assert a == b and "completion_s" in a
+
+
+def test_maxmin_gives_unused_capacity_to_others():
+    """Three sites A-B-C. f goes A->B->C, g goes A->B. Link B-C is slow (10 Gbps), A-B fast (100).
+    Proportional: on A-B each gets half (50 Gbps), but f can only use 10, so g keeps 50.
+    Max-min: f is frozen at 10 Gbps by B-C and g gets the remaining 90 Gbps on A-B."""
+    topo = Topology(sites=["A", "B", "C"], links=[Link("A", "B", 100.0, 0.0), Link("B", "C", 10.0, 0.0)])
+    wf = {"workflow": "w", "deadline_s": 1000.0, "source_site": "A",
+          "transfers": [{"id": "f@C", "file": "f", "bytes": 100e9, "src": "A", "dst": "C", "after_task": None, "deadline_s": 999},
+                        {"id": "g@B", "file": "g", "bytes": 9e9, "src": "A", "dst": "B", "after_task": None, "deadline_s": 999}],
+          "tasks": {"c": {"parents": [], "children": [], "inputs": ["f"], "outputs": [], "runtime_s": 1.0, "site": "C",
+                          "earliest_finish_s": 1.0, "latest_start_s": 1.0},
+                    "b": {"parents": [], "children": [], "inputs": ["g"], "outputs": [], "runtime_s": 1.0, "site": "B",
+                          "earliest_finish_s": 1.0, "latest_start_s": 1.0}}}
+    prop = Simulator(wf, topo, None, [], seed=0, dt=0.1)
+    prop.run(Baseline())
+    mm = Simulator(wf, topo, None, [], seed=0, dt=0.1, sharing="maxmin")
+    mm.run(Baseline())
+    assert prop.by_id["g@B"].arrive_t == pytest.approx(9e9 / (50e9 / 8))   # 1.44 s at 50 Gbps
+    assert mm.by_id["g@B"].arrive_t == pytest.approx(9e9 / (90e9 / 8))     # 0.80 s at 90 Gbps
+    assert mm.by_id["f@C"].arrive_t == pytest.approx(100e9 / (10e9 / 8))   # B-C limits f either way

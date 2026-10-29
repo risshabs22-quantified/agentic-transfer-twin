@@ -59,6 +59,7 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 23 | 9 | **Bug fix found while writing HOW_IT_WORKS:** a stall timeout no longer fails a transfer whose link came back at that same instant (the timeout check now also requires the transfer to still be stalled). | The outage lasts exactly 0.6 D = 6 timeouts, so stalled baseline transfers hit their 6th timeout at the very moment the link returned and were counted as failed although they were no longer stuck. This changed results after I had seen them, so I re-ran **everything**: `tune.py` and `tune_agents.py` outputs are byte-identical (same choices); in the 180 runs only `failed_attempts` and `decisions` changed, in the 10 `1000genome-8ch / link_failure / baseline` rows (e.g. seed 3: 136 → 115 failed attempts); completion, late and failed-transfer counts, tables, findings and plots are unchanged (a transfer stalled since its last failure had no progress to lose). The fix can only help the baselines. | `tests/test_simulator.py::test_link_back_exactly_at_timeout_does_not_fail`; `python scripts/replay.py --all`. |
 | 24 | stretch | **Cross-platform reproduction is exact to the last bit for all but one value.** CI (Linux x86-64) replays the committed logs (180/180 OK), re-runs all 180 experiments and compares with the committed `summary.csv` using `scripts/check_summary.py` (ints/bools/text exact, floats within 1e-9 relative). Result: 2879 of 2880 values byte-identical; the one exception is `data_wait_s` in one row (7085.066725301376 on macOS arm64 vs …378 on Linux), a difference in the 16th significant digit. | Bit-identical floats across CPU architectures are not guaranteed (numpy's vectorized `sin` and libm differ in the last bit between ARM and x86). The DoD requirement (fresh clone reproduces `summary.csv` byte-for-byte) holds on the same platform, verified in Stage 10; across platforms the honest guarantee is the replay tolerance. | GitHub Actions job `reproduce`; `python scripts/check_summary.py a.csv b.csv`. |
 | 25 | stretch | **Competing workflows** support: `extract.merge_workflows` prefixes every task/file id with its workflow name; the simulator keeps each workflow's own D (`members`), re-samples capacity on the shortest workflow's grid, gives each transfer the timeout of its own workflow (0.1 × its own D), and reports per-workflow completion/late/failed (`<workflow>:...` metrics). Single-workflow runs are unchanged (verified: replay 180/180 and `summary.csv` byte-identical after the change). | Judging Montage on 1000Genome's clock (a 60 s timeout for a 32 s workflow) would be meaningless. | `tests/test_competing.py`. |
+| 26 | stretch | Optional **weighted max-min fair sharing** (`Simulator(sharing="maxmin")`, set via `simulator.sharing` in a run's settings; default stays `proportional`, used for all main results). | Checks that the conclusions don't depend on the simplified sharing rule. | `tests/test_simulator.py::test_maxmin_gives_unused_capacity_to_others` (hand-checked rates: 50 vs. 90 Gbps). |
 
 ## Tuning table
 
@@ -437,3 +438,15 @@ cmp results/summary.csv <(git show HEAD:results/summary.csv) && echo identical
   for both baselines (which are identical here — no outage to reroute around); the agents were
   faster for both workflows on 10/10 seeds; Montage still finishes right at its deadline on
   average with the agents, because nothing in the agents is about fairness between workflows.
+
+### 2026-10-29 — Stretch goals 3 and 4: max-min fair sharing; Claude Desktop snippet
+
+- `scripts/run_maxmin.py`: the full 180-run grid under max-min fair sharing into `results/maxmin/`
+  (logs, manifests, `summary.csv`), each replayed right after it is recorded: 180/180 exact.
+  Nothing re-tuned. `make_tables.py` adds a "Supplementary: max-min fair sharing" section.
+  Result: every cell moves by less than 0.01 D, the planners keep the same order everywhere, and
+  the agents still win 10/10 paired seeds against both baselines in every cell — the conclusions
+  do not depend on the sharing model.
+- README: a Claude Desktop `mcpServers` config snippet for the demo MCP server (same command the
+  stdio demo client already exercises).
+- Stretch goal 5 (LLM mode) not started: it needs Risshab's API key and explicit OK (costs money).

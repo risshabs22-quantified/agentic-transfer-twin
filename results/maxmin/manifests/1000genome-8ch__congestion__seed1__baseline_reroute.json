@@ -1,0 +1,131 @@
+{
+ "run_id": "1000genome-8ch__congestion__seed1__baseline_reroute",
+ "settings": {
+  "workflow": "1000genome-8ch",
+  "workflow_file": "data/raw/1000genome-chameleon-8ch-100k-001.json",
+  "workflow_sha256": "6b62bf9b7a773988e31dadd6f39f389f62b0abedfaa46eec889f6992c0314f2f",
+  "scenario": "congestion",
+  "seed": 1,
+  "planner": "baseline_reroute",
+  "mode": "rule",
+  "planner_params": {},
+  "sites": [
+   "Caltech",
+   "UCSD",
+   "FNAL",
+   "ORNL"
+  ],
+  "source_site": "CERN",
+  "slack": 1.5,
+  "data_scale": 100,
+  "simulator": {
+   "steps_per_deadline": 1000,
+   "max_time_frac": 20,
+   "timeout_frac": 0.1,
+   "sharing": "maxmin"
+  },
+  "background": {
+   "mean": 0.2,
+   "wave": 0.1,
+   "period_frac": 0.5,
+   "noise": 0.05,
+   "interval_frac": 0.005
+  },
+  "events": [
+   {
+    "type": "surge",
+    "link": [
+     "StarLight",
+     "ORNL"
+    ],
+    "start_frac": 0.05,
+    "end_frac": 0.5,
+    "extra_load": 0.7
+   }
+  ],
+  "topology": {
+   "sites": [
+    "CERN",
+    "StarLight",
+    "FNAL",
+    "Caltech",
+    "UCSD",
+    "ORNL"
+   ],
+   "links": [
+    {
+     "a": "CERN",
+     "b": "StarLight",
+     "gbps": 400.0,
+     "ms": 90.0
+    },
+    {
+     "a": "StarLight",
+     "b": "FNAL",
+     "gbps": 400.0,
+     "ms": 2.0
+    },
+    {
+     "a": "StarLight",
+     "b": "Caltech",
+     "gbps": 100.0,
+     "ms": 50.0
+    },
+    {
+     "a": "StarLight",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "FNAL",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "Caltech",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 5.0
+    },
+    {
+     "a": "FNAL",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 55.0
+    }
+   ]
+  }
+ },
+ "metrics": {
+  "completed": true,
+  "completion_s": 715.8036011258263,
+  "failed_attempts": 0,
+  "failed_transfers": 0,
+  "late": 27,
+  "n_transfers": 175,
+  "gb_moved": 3897.6052317,
+  "avg_gbps": 43.56061048667305,
+  "data_wait_s": 13154.180906923912,
+  "reroutes": 0,
+  "decisions": 3,
+  "end_s": 715.8036011258263,
+  "deadline_D_s": 601.916,
+  "tasks_done": 208,
+  "transfers_arrived": 175,
+  "rejected_entries": 0
+ },
+ "log": "maxmin/logs/1000genome-8ch__congestion__seed1__baseline_reroute.jsonl.gz",
+ "git_commit": "631d974ca48ab3eac9b3176c59a86410aeb2b346-dirty",
+ "versions": {
+  "python": "3.12.14",
+  "networkx": "3.7",
+  "numpy": "2.5.4",
+  "pandas": "3.1.0",
+  "matplotlib": "3.11.2",
+  "PyYAML": "6.0.3",
+  "mcp": "2.3.0",
+  "pytest": "9.2.0"
+ }
+}

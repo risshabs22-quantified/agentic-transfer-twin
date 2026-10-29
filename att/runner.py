@@ -99,7 +99,7 @@ def sim_from_settings(s: dict[str, Any]) -> Simulator:
     sim_cfg = s["simulator"]
     return Simulator(ex, topo, Background(**s["background"]), events, s["seed"],
                      steps_per_deadline=sim_cfg["steps_per_deadline"], max_time_frac=sim_cfg["max_time_frac"],
-                     timeout_frac=sim_cfg["timeout_frac"])
+                     timeout_frac=sim_cfg["timeout_frac"], sharing=sim_cfg.get("sharing", "proportional"))
 
 
 def build_sim(exp: dict[str, Any], workflow: str, scenario: str, seed: int,

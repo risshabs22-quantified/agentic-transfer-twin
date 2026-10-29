@@ -322,8 +322,8 @@ All of these come from the public WfInstances traces.
 - the `data_scale` multiplier on file sizes.
 
 **Limitations, in plain words:**
-- **Sharing is simplified.** The network shares capacity in a simple way: no TCP behavior, not
-  max-min fair, and both directions of a link share one capacity.
+- **Sharing is simplified.** The network shares capacity in a simple way: no TCP behavior, and both
+  directions of a link share one capacity. A max-min fair re-run gives the same picture.
 - **The numbers are invented.** The map and its numbers aren't real measurements.
 - **Placement is random.** Tasks go to sites by a hash, which creates more cross-site traffic than a
   real scheduler would.
@@ -523,8 +523,11 @@ python scripts/run_experiments.py --workflows montage-01d --scenarios link_failu
 
 20. **How is bandwidth shared between transfers?**
     On each link, moving transfers split the free capacity in proportion to priority (2 vs. 1). A
-    transfer's speed is its smallest share along its route. That's simpler than real TCP and listed
-    as a limitation.
+    transfer's speed is its smallest share along its route. That's simpler than real TCP. To check
+    it doesn't drive the conclusions, I re-ran all 180 runs with max-min fair sharing
+    (`python scripts/run_maxmin.py`), where leftover capacity goes to other transfers. The results
+    barely moved and the planners kept the same order (supplementary table in
+    `results/table.md`).
 
 21. **Why 10 seeds? Is that enough?**
     It's enough to see consistent paired wins (the agents won 120 of 120 comparisons), but not
@@ -562,7 +565,6 @@ python scripts/run_experiments.py --workflows montage-01d --scenarios link_failu
 27. **What would you do next?**
     - two workflows competing;
     - forecasts that know events end;
-    - max-min fair sharing to check robustness;
     - an LLM coordinator compared on the same seeds;
     - a real topology if available.
 
