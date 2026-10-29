@@ -7,3 +7,5 @@ matplotlib==3.11.2
 PyYAML==6.0.3
 mcp[cli]==2.3.0
 pytest==9.2.0
+# Optional, only for LLM mode (scripts/run_llm.py); rule mode and all main results do not need it.
+anthropic==2.3.0

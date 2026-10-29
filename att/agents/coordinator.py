@@ -164,21 +164,36 @@ class AgentTeam(Planner):
         if name != simple and simple in forecasts and forecasts[simple]["completed"] and forecasts[name]["completed"]:
             if forecasts[name]["completion_s"] > (1 - self.draft_margin) * forecasts[simple]["completion_s"]:
                 name = simple  # the gain is within forecast error: keep the simple plan
-        chosen = drafts[name]
+        name, chosen, review = await self._review_initial(
+            tc, {"drafts": drafts, "forecasts": forecasts, "rule_choice": name, "ranked": ranked,
+                 "todo": todo, "network": na, "now": now})
         check = await tc.call("submit_plan", plan=chosen)
         for tid in check["rejected"]:  # never expected; keep the plan safe anyway
             chosen.pop(tid, None)
 
         n2 = sum(1 for e in chosen.values() if e["priority"] == 2)
+        saw = {"transfers": len(todo), "busy_links": na["busy_links"], "down_links": na["down_links"],
+               "forecast_completion_s": {n: f["completion_s"] for n, f in forecasts.items()}}
+        if review:
+            saw["review"] = review
         self.note.update({
-            "agent": "coordinator",
-            "saw": {"transfers": len(todo), "busy_links": na["busy_links"], "down_links": na["down_links"],
-                    "forecast_completion_s": {n: f["completion_s"] for n, f in forecasts.items()}},
-            "reason": f"kept the {name} draft (best forecast: " + ", ".join(
+            "agent": "coordinator", "saw": saw,
+            "reason": review.get("reason") or (f"kept the {name} draft (best forecast: " + ", ".join(
                 f"{n} {forecast_key(f)[1]:.1f} s" for n, f in forecasts.items()) +
-                f"); {n2} most urgent transfers get priority 2",
+                f"); {n2} most urgent transfers get priority 2"),
         })
         return chosen
+
+    async def _review_initial(self, tc: ToolClient, ctx: dict[str, Any]) -> tuple[str, Plan, dict[str, Any]]:
+        """Hook: the final say on the initial plan. Rule mode keeps the rule choice.
+        Returns (draft name, plan, review notes for the log)."""
+        return ctx["rule_choice"], ctx["drafts"][ctx["rule_choice"]], {}
+
+    async def _review_event(self, tc: ToolClient, ctx: dict[str, Any]) -> tuple[Plan, bool, dict[str, Any]]:
+        """Hook: the final say on an event's proposed changes. Rule mode applies the forecast gate:
+        keep the change only if its forecast is no worse than keeping the current plan.
+        Returns (changes, apply?, review notes for the log)."""
+        return ctx["changes"], forecast_key(ctx["forecast_change"]) <= forecast_key(ctx["forecast_keep"]), {}
 
     # ------------------------------------------------------------------ events
 
@@ -252,17 +267,23 @@ class AgentTeam(Planner):
             f_new = await tc.call("simulate_plan", plan=changes)
             f_now = await tc.call("simulate_plan", plan={})
             saw.update({"forecast_change_s": f_new["completion_s"], "forecast_keep_s": f_now["completion_s"]})
-            if forecast_key(f_new) > forecast_key(f_now):
+            changes, apply, review = await self._review_event(
+                tc, {"event": event, "affected": affected, "options": na["options"], "changes": changes,
+                     "forecast_change": f_new, "forecast_keep": f_now, "by_id": by_id, "ranked": ranked,
+                     "now": now, "network": net})
+            if review:
+                saw["review"] = review
+            if not apply:
                 self.note.update({"agent": "coordinator", "saw": saw,
-                                  "reason": f"{etype}: proposed {moved} reroute(s), but the forecast "
-                                            "was worse than keeping the plan; no change"})
+                                  "reason": review.get("reason") or (f"{etype}: proposed {moved} reroute(s), but the "
+                                                                     "forecast was worse than keeping the plan; no change")})
                 return {}
+            moved = sum(1 for tid, e in changes.items() if e["path"] != by_id[tid]["path"])
             check = await tc.call("submit_plan", plan=changes)
             for tid in check["rejected"]:
                 changes.pop(tid, None)
-        self.note.update({
-            "agent": "coordinator", "saw": saw,
-            "reason": f"{etype}: rerouted {moved} of {len(affected)} affected transfer(s) by projected "
-                      f"load; {len(changes) - moved} priority update(s)" if changes else f"{etype}: nothing to change",
-        })
+        rule_reason = (f"{etype}: rerouted {moved} of {len(affected)} affected transfer(s) by projected "
+                       f"load; {len(changes) - moved} priority update(s)" if changes else f"{etype}: nothing to change")
+        self.note.update({"agent": "coordinator", "saw": saw,
+                          "reason": (saw.get("review") or {}).get("reason") or rule_reason})
         return changes

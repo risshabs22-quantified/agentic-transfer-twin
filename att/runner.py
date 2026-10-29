@@ -109,10 +109,17 @@ def build_sim(exp: dict[str, Any], workflow: str, scenario: str, seed: int,
     return sim_from_settings(run_settings(exp, workflow, scenario, seed, data_scale=data_scale))
 
 
-def make_planner(name: str, exp: dict[str, Any] | None = None, params: dict[str, Any] | None = None) -> Planner:
-    """Build a planner by name. Agent parameters come from `params`, else experiment.yaml."""
+def make_planner(name: str, exp: dict[str, Any] | None = None, params: dict[str, Any] | None = None,
+                 mode: str = "rule") -> Planner:
+    """Build a planner by name. Agent parameters come from `params`, else experiment.yaml.
+    mode="llm" (agents only) gives the optional LLM-mode team, which calls the Claude API."""
     from att.agents import AgentTeam
     from att.baseline import Baseline, BaselineReroute
+    if mode == "llm":
+        if name != "agents":
+            raise ValueError("LLM mode exists only for the agents planner")
+        from att.agents.llm_coordinator import LLMAgentTeam
+        return LLMAgentTeam(**(params if params is not None else exp["agents"]))
     if name == "baseline":
         return Baseline()
     if name == "baseline_reroute":

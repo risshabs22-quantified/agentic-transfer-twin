@@ -37,15 +37,20 @@ def main() -> None:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--run")
     g.add_argument("--all", action="store_true")
+    g.add_argument("--llm", action="store_true", help="replay the recorded LLM-mode runs (no API calls)")
     args = ap.parse_args()
+    results_dir = RESULTS
     if args.all:
         exp = config.load_experiment()
         ids = [run_id(*x) for x in grid(exp)]
+    elif args.llm:
+        results_dir = RESULTS / "llm"
+        ids = sorted(p.name[:-5] for p in (results_dir / "manifests").glob("*.json"))
     else:
         ids = [args.run]
     bad = 0
     for rid in ids:
-        diffs = replay_one(rid)
+        diffs = replay_one(rid, results_dir)
         if diffs:
             bad += 1
             print(f"REPLAY MISMATCH {rid}")

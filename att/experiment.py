@@ -49,7 +49,7 @@ def execute(settings: dict[str, Any], results_dir: Path = RESULTS, commit: str |
     """Run one configured run, write its log + manifest, and return the manifest."""
     rid = run_id(settings["workflow"], settings["scenario"], settings["seed"], settings["planner"], settings["mode"])
     sim = sim_from_settings(settings)
-    planner = make_planner(settings["planner"], params=settings["planner_params"])
+    planner = make_planner(settings["planner"], params=settings["planner_params"], mode=settings["mode"])
     metrics = sim.run(planner)
     log_path = results_dir / "logs" / f"{rid}.jsonl.gz"
     write_log(log_path, rid, sim.decisions)
