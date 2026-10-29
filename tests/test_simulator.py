@@ -68,6 +68,15 @@ def test_failure_path_counts_transfer_once():
     assert m["late"] == 1 and m["completed"]
 
 
+def test_link_back_exactly_at_timeout_does_not_fail():
+    """Down from 1 s to 3 s (timeouts would fire at 2 s and 3 s): at 3 s the link is back, so only
+    the 2 s timeout counts."""
+    ev = [NetEvent("down", ("A", "B"), 0.1, 0.3)]
+    sim = Simulator(tiny_workflow(100e9), two_site_topo(), None, ev, seed=0, dt=0.01)
+    m = sim.run(Baseline())
+    assert m["failed_attempts"] == 1
+
+
 def test_stall_shorter_than_timeout_does_not_fail():
     ev = [NetEvent("down", ("A", "B"), 0.1, 0.15)]  # 0.5 s outage < 1 s timeout
     sim = Simulator(tiny_workflow(100e9), two_site_topo(), None, ev, seed=0, dt=0.01)

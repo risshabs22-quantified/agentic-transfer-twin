@@ -328,9 +328,10 @@ class Simulator:
                         x.status = ACTIVE
                 elif kind == NET_EVENT:
                     self._net_event(payload)
-            # 3. stalled transfers that just hit the timeout: the attempt fails
+            # 3. transfers STILL stalled that just hit the timeout: the attempt fails. (If the link came
+            #    back at this same instant, the transfer is no longer stuck, so it does not fail.)
             for x in self.transfers:
-                if x.status == ACTIVE and x.stall >= self.timeout * (1 - 1e-12):
+                if x.status == ACTIVE and x.stall >= self.timeout * (1 - 1e-12) and self._stalled(x):
                     x.failed_attempts += 1
                     x.remaining, x.stall = x.bytes, 0.0
                     progressed = True
