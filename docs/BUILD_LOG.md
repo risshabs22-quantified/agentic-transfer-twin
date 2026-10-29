@@ -57,6 +57,7 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 21 | 8 | Key findings include the agents' clearest loss, which is on a **dev** workflow (Montage 0.05°, tuning seeds), read from `results/tuning/*.json`. | On the result workflows the agents were never slower in any paired comparison, but CLAUDE.md asks for a finding where they did not help if one exists; hiding the dev loss would overstate the agents. | `scripts/make_tables.py::dev_comparison`. |
 | 22 | 8 | Plots: completion time in seconds with a dashed line at D (one panel per workflow, since D differs); failures as a 2 × 2 grid (late / failed × workflow). Colors fixed per planner, from a palette checked for color-vision deficiency with the dataviz validator; every bar carries its value. | One y-axis per panel, units on axes, identity never by color alone. | `results/*.png`. |
 | 23 | 9 | **Bug fix found while writing HOW_IT_WORKS:** a stall timeout no longer fails a transfer whose link came back at that same instant (the timeout check now also requires the transfer to still be stalled). | The outage lasts exactly 0.6 D = 6 timeouts, so stalled baseline transfers hit their 6th timeout at the very moment the link returned and were counted as failed although they were no longer stuck. This changed results after I had seen them, so I re-ran **everything**: `tune.py` and `tune_agents.py` outputs are byte-identical (same choices); in the 180 runs only `failed_attempts` and `decisions` changed, in the 10 `1000genome-8ch / link_failure / baseline` rows (e.g. seed 3: 136 → 115 failed attempts); completion, late and failed-transfer counts, tables, findings and plots are unchanged (a transfer stalled since its last failure had no progress to lose). The fix can only help the baselines. | `tests/test_simulator.py::test_link_back_exactly_at_timeout_does_not_fail`; `python scripts/replay.py --all`. |
+| 24 | stretch | **Cross-platform reproduction is exact to the last bit for all but one value.** CI (Linux x86-64) replays the committed logs (180/180 OK), re-runs all 180 experiments and compares with the committed `summary.csv` using `scripts/check_summary.py` (ints/bools/text exact, floats within 1e-9 relative). Result: 2879 of 2880 values byte-identical; the one exception is `data_wait_s` in one row (7085.066725301376 on macOS arm64 vs …378 on Linux), a difference in the 16th significant digit. | Bit-identical floats across CPU architectures are not guaranteed (numpy's vectorized `sin` and libm differ in the last bit between ARM and x86). The DoD requirement (fresh clone reproduces `summary.csv` byte-for-byte) holds on the same platform, verified in Stage 10; across platforms the honest guarantee is the replay tolerance. | GitHub Actions job `reproduce`; `python scripts/check_summary.py a.csv b.csv`. |
 
 ## Tuning table
 
@@ -413,3 +414,13 @@ python -m venv .venv && source .venv/bin/activate && pip install -r requirements
 python scripts/run_experiments.py && python scripts/replay.py --all
 cmp results/summary.csv <(git show HEAD:results/summary.csv) && echo identical
 ```
+
+### 2026-10-29 — Stretch goal 1: GitHub Actions
+
+- `.github/workflows/tests.yml`, two jobs on every push to `main` and on pull requests:
+  - `pytest`: Python 3.12 on ubuntu-latest, `pip install -r requirements.txt`, `pytest -q`.
+  - `reproduce`: replays the committed logs, re-runs all 180 experiments, and compares with the
+    committed `summary.csv` using `scripts/check_summary.py` (Deviation 24).
+- Both jobs passed on GitHub before I kept them. The first `reproduce` attempt used a
+  byte-for-byte `git diff` and failed on the one 16th-digit difference; I switched it to the
+  replay tolerance and documented why, rather than hiding the difference.

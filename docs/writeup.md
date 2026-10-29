@@ -216,7 +216,9 @@ tool calls and 1 of its 42 plan entries:
 the logged decisions only, with no agent code. It checks that every event arrives exactly as
 logged, and compares all metrics with the recorded ones. All 180 runs replay exactly. The same code
 gives byte-identical results in separate processes, and a fresh clone reproduces `summary.csv`
-byte for byte.
+byte for byte on the same platform. On a different CPU architecture (Linux x86-64 in CI) the last
+digit of a floating-point value can differ, so CI checks that case with the same 1e-9 tolerance
+replay uses.
 
 ## 8. Limitations
 
