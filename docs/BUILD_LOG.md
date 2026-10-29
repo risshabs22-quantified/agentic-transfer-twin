@@ -470,3 +470,10 @@ cmp results/summary.csv <(git show HEAD:results/summary.csv) && echo identical
   every seed. All 61 LLM runs replay exactly without calling the API (`scripts/replay.py --llm`).
 - **Risshab: rotate the API key** (it was pasted into a chat): platform.claude.com → Settings →
   API Keys → delete it; then delete `.env` or put a new key in it.
+
+### 2026-10-29 — MCP Inspector screenshot
+
+- Risshab ran the MCP Inspector (v2.13.0) against `python -m att.mcp_server` and called `get_paths`
+  (CERN → UCSD). Saved as `docs/inspector.png`, cropped to the Inspector window only (browser tabs,
+  bookmarks and the Inspector session token in the URL removed), and placed in the README's MCP
+  section in place of the placeholder.

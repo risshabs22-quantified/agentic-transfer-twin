@@ -199,7 +199,11 @@ npx @modelcontextprotocol/inspector python -m att.mcp_server   # browse the tool
 
 The stdio server runs a demo twin: 1000Genome 2ch, `normal` scenario, seed 0, at t = 0.
 
-> _Screenshot placeholder: MCP Inspector showing the tool list and a `get_paths` call._
+![MCP Inspector connected to the demo server](docs/inspector.png)
+
+_The MCP Inspector connected to `python -m att.mcp_server`: the 8 tools, and the result of
+`get_paths` from CERN to UCSD. The first (lowest-delay) route is CERN → StarLight → Caltech → UCSD,
+shown one site per row._
 
 **Connect Claude Desktop** to the demo twin: add this to Claude Desktop's config file
 (`claude_desktop_config.json`; on macOS in `~/Library/Application Support/Claude/`), replacing
