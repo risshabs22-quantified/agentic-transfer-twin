@@ -10,7 +10,7 @@ Every entry says what was built, why, and the commands to verify it.
 - [x] Stage 2 — configs + network model (`att/network.py`)
 - [x] Stage 3 — simulator, planner interface, baselines
 - [x] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
-- [ ] Stage 5 — tools, MCP server, tool client, stdio demo
+- [x] Stage 5 — tools, MCP server, tool client, stdio demo
 - [ ] Stage 6 — agents + event handling, agent tuning on dev workflows
 - [ ] Stage 7 — decision log, replay, experiment runner (180 runs)
 - [ ] Stage 8 — tables, plots, README, write-up
@@ -32,6 +32,9 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 7 | 3 | Added `att/config.py` (YAML loading) and `att/runner.py` (`build_sim`, `run_one`, `run_id`) to the layout. | One place builds a run, so experiments, tuning, tests and replay can't drift apart. | — |
 | 8 | 3 | **Float guard:** if a transfer's remaining bytes are too small to move the clock (`t + remaining/rate == t`), it is finished now. | Found while testing: a 1.7e-5-byte remainder at 10 GB/s gives a 1.6e-15 s step, which is below float resolution at t = 51 s, so the loop never advanced. | `att/simulator.py::_loop`. |
 | 9 | 4 | Added an optional per-link byte counter (`Simulator.count_window`) used only by `tune.py` for step (a). | Step (a) needs "the link that carries the most baseline bytes during the event window"; measuring it inside the simulator is exact. It is off (None) in every experiment run. | `scripts/tune.py::busiest_link_in_window`. |
+| 10 | 5 | Tools additions: batch tools `get_paths_many` and `estimate_many` (CLAUDE.md allows these); `get_paths(..., avoid_down=False)` option; `get_workflow_requirements` adds `data_ready_s` (best present estimate of when a transfer's data exists, from task status and trace runtimes); "never"/"unknown" are returned as `null` because MCP output must be valid JSON (NaN/inf are not). | Fewer round trips per decision; agents need readiness to compute slack; the SDK rejects NaN in structured output (verified). | `tests/test_tools.py`. |
+| 11 | 5 | The module-level demo server `att.mcp_server.mcp` is built lazily (module `__getattr__`) rather than at import time. | Importing `build_server` in every experiment run would otherwise build a throwaway demo twin each time. `python -m att.mcp_server` and `getattr(module, "mcp")` (what `mcp dev` uses) still work. | `python scripts/mcp_demo_client.py`. |
+| 12 | 5 | `Simulator.run` split into `start(planner)` (t = 0 setup + initial plan) and the main loop. | The demo server and tests need a twin "at t = 0 with a plan in place" without running it. | `tests/test_tools.py`. |
 
 ## Tuning table
 
@@ -219,4 +222,34 @@ pytest -q tests/test_simulator.py tests/test_planner.py
 ```bash
 python scripts/tune.py     # ~5 s; same numbers; doesn't touch experiment.yaml without --write
 pytest -q tests/test_config.py
+```
+
+### 2026-10-29 — Stage 5: tools, MCP server, tool client, stdio demo
+
+**Built**
+- `att/tools.py`: `get_workflow_requirements`, `get_network_state`, `get_paths` (+ `get_paths_many`),
+  `estimate_transfer_time` (+ `estimate_many`), `simulate_plan` (persistence forecast via
+  `Simulator.snapshot()`), `submit_plan` (same validation as the simulator). Plain functions over
+  a `TwinView`; JSON in, JSON out.
+- `att/mcp_server.py`: `build_server(view) -> MCPServer` with one `@mcp.tool()` wrapper per tool;
+  `python -m att.mcp_server` serves a demo twin (1000Genome 2ch, normal, seed 0, t = 0) over stdio.
+- `att/tool_client.py`: `run_with_tools(server, fn)` opens ONE MCP client session inside ONE
+  `asyncio.run` per decision and records every call (tool, args — long args as size + sha256 —
+  and a one-line result summary). Errors from tools surface as `ToolCallError`.
+- `scripts/mcp_demo_client.py`: starts the server as a separate process over stdio and calls
+  every tool once.
+
+**Verified**
+- MCP SDK detail: sync tools run in a worker thread (anyio), one call at a time, so the twin is
+  never touched concurrently; one `MCPServer` object can be reused across many `asyncio.run` calls.
+- `tests/test_tools.py`: every tool in-process through MCP equals the direct call; every tool
+  works over stdio in a subprocess; estimates and paths respect a down link; **no-peeking:**
+  `simulate_plan` at t = 0 gives byte-identical output for `normal` and `link_failure` (the
+  failure is scheduled in the future), while after the link goes down the forecast does show it.
+
+**How to verify**
+```bash
+python scripts/mcp_demo_client.py
+pytest -q tests/test_tools.py
+npx @modelcontextprotocol/inspector python -m att.mcp_server    # optional, needs Node.js
 ```

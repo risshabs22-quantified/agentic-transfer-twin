@@ -158,8 +158,7 @@ def test_forecast_ignores_future_events():
     normal = build_sim(exp, "1000genome-2ch", "normal", 4, data_scale=100)
     failing = build_sim(exp, "1000genome-2ch", "link_failure", 4, data_scale=100)
     for sim in (normal, failing):  # make the initial plan, then forecast at t = 0
-        sim.planner = Baseline()
-        sim._call_planner({"type": "initial_plan", "t": 0.0, "seq": 0})
+        sim.start(Baseline())
     fa = normal.view().forecast(normal.view().plan())
     fb = failing.view().forecast(failing.view().plan())
     assert json.dumps(fa, sort_keys=True) == json.dumps(fb, sort_keys=True)

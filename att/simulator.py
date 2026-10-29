@@ -360,15 +360,21 @@ class Simulator:
 
     def run(self, planner: Planner, horizon_s: float | None = None) -> dict[str, Any]:
         """Run to the end (all tasks done) or to max time / the horizon. Returns the metrics."""
-        self.planner = planner
         if horizon_s is not None:
             self.stop_time = min(self.max_time, self.t + horizon_s)
-        if self.t == 0.0 and not self.decisions and not isinstance(planner, _NullPlanner):
-            for k in self.tasks.values():  # tasks with no inputs and no parents start at t = 0
-                if k.unmet == 0 and k.status == "pending":
-                    self._start_task(k)
-            self._call_planner({"type": "initial_plan", "t": 0.0, "seq": 0})
+        if isinstance(planner, _NullPlanner):  # a forecast: the plan is already in place
+            self.planner = planner
+        elif self.planner is None:
+            self.start(planner)
         return self._loop()
+
+    def start(self, planner: Planner) -> None:
+        """Set up t = 0: start tasks that need nothing, then ask the planner for its initial plan."""
+        self.planner = planner
+        for k in self.tasks.values():  # tasks with no inputs and no parents start at t = 0
+            if k.unmet == 0 and k.status == "pending":
+                self._start_task(k)
+        self._call_planner({"type": "initial_plan", "t": 0.0, "seq": 0})
 
     def _loop(self) -> dict[str, Any]:
         n_tasks = len(self.tasks)
