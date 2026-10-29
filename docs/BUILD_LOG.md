@@ -6,7 +6,7 @@ Every entry says what was built, why, and the commands to verify it.
 ## Progress
 
 - [x] Stage 0 — environment, requirements, data, build log
-- [ ] Stage 1 — extraction (`att/extract.py`)
+- [x] Stage 1 — extraction (`att/extract.py`)
 - [ ] Stage 2 — configs + network model (`att/network.py`)
 - [ ] Stage 3 — simulator, planner interface, baselines
 - [ ] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
@@ -54,4 +54,33 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 ```bash
 python scripts/fetch_data.py   # prints "skip" for each file
 pytest -q
+```
+
+### 2026-10-29 — Stage 1: extraction (`att/extract.py`)
+
+**Built**
+- The reference implementation from CLAUDE.md section 8, unchanged in behavior, split into small
+  functions (`load_instance`, `place_tasks`, `topological_order`, `earliest_finish_times`,
+  `latest_start_times`, `extract_transfers`, `summarize`).
+- Extensions: `data_scale` (multiplies bytes, rounded to whole bytes; default 1 leaves sizes
+  untouched), and the result now also carries `placement`, `tasks` (parents, children, inputs,
+  outputs, runtime, site, earliest finish, latest start), `file_bytes`, and the settings used.
+- `tests/test_extract.py`: the acceptance table, transfer invariants (`src != dst`, `bytes > 0`,
+  unique ids, deadline within D, src = producer's site or CERN), `data_scale` scales bytes only,
+  placement depends on seed, a hand-checked critical-path example, and cross-process
+  determinism (two subprocesses with `PYTHONHASHSEED=1` and `98765` produce identical sha256
+  digests of the full output).
+
+**Result** (seed 0, slack 1.5, data_scale 1) — matches CLAUDE.md exactly:
+
+| File | Transfers | GB moved | D (s) |
+|---|---|---|---|
+| 1000genome-chameleon-2ch-100k-001 | 62 | 8.67 | 307.029 |
+| montage-chameleon-2mass-005d-001 | 140 | 0.34 | 32.078 |
+| 1000genome-chameleon-8ch-100k-001 | 179 | 38.97 | 601.916 |
+| montage-chameleon-2mass-01d-001 | 248 | 0.68 | 31.683 |
+
+**How to verify**
+```bash
+pytest -q tests/test_extract.py
 ```
