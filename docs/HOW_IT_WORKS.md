@@ -33,32 +33,241 @@ have five minutes, read sections 1 and 11; if you want to change something, read
 
 > **In plain words:** Science jobs are split into many steps at different computing centers, and files have to travel between them. This project tests whether a team of programs can plan those trips better than simple rules, and why.
 
-Scientific workflows such as 1000Genome (genomics) and Montage (astronomy image mosaics) are made
-of hundreds of tasks spread across computing sites. A task often needs a file that another task
-produced somewhere else, so that file has to cross a wide-area network before the task can start.
-If the network is congested or a link fails, files arrive late and every task downstream waits.
+This section explains the whole idea from the ground up. Every technical word is defined the first
+time it appears, and a table of key terms closes the section.
 
-The repository asks one question: **can a small team of software agents, which see the network only
-through a set of tools, plan those transfers better than simple rules, and where exactly does the
-benefit come from?**
+### 1.1 Scientific workflows
 
-To answer it fairly, the project:
+A **scientific workflow** is a large computation broken into many smaller computing jobs called
+**tasks**, where some tasks need the results of others. If task B reads a file that task A writes,
+B **depends on** A and cannot start until A has finished and its file is available. Drawn as boxes
+(tasks) joined by arrows (dependencies), a workflow forms a **DAG**, short for *directed acyclic
+graph*: "directed" because each arrow points one way, from producer to consumer, and "acyclic"
+because no chain of arrows ever loops back to where it started. A DAG always has a sensible order
+in which to run its tasks.
 
-- turns real, public workflow traces into the list of transfers each workflow needs;
-- moves those transfers over a simulated network (a "digital twin") whose free capacity changes,
-  which gets congested, and which loses a link;
-- lets three planners handle the same situations on the same random seeds: a lowest-delay
-  baseline, the same baseline with rerouting around failed links, and the agent team;
-- gives the agents their tools through an MCP server, so the interface is a standard one any MCP
-  client can use;
-- logs every decision so any run can be replayed exactly, and compares the planners on completion
-  time, late transfers and failed transfers.
+This project uses two real workflows:
 
-The short answer, computed from the results:
+- **1000Genome**, from genetics. It processes data from the 1000 Genomes Project, an international
+  effort that sequenced the DNA of thousands of people, and computes statistics about genetic
+  variation per chromosome. Its files are large and it fans out widely: many tasks run side by side
+  and then merge.
+- **Montage**, from astronomy. It takes many small telescope images of a patch of sky, corrects them
+  so they line up and match in brightness, and stitches them into one mosaic. It moves many small
+  files in waves, one processing stage after another.
+
+The records of these workflows are called **traces**. A trace lists every task, which files each
+task reads and writes, how big each file is (in bytes), and how long each task actually ran (in
+seconds). The traces used here come from **WfInstances**, a public collection maintained by the
+WfCommons project. They are real measurements from real runs.
+
+### 1.2 Why files have to travel
+
+Large science projects don't run on one computer. They run at several **computing sites** (data
+centers at universities and laboratories), because no single site has enough capacity, the data is
+produced in one place and analysed in another, or particular hardware lives at a particular site.
+Here there are four compute sites, named Caltech, UCSD, FNAL and ORNL, plus CERN, where the raw
+input data starts. The names are only labels for a made-up setup.
+
+When a task at one site needs a file produced at another site, that file must be sent over the
+**wide-area network** (WAN): the long-distance network connecting sites across a country or
+continent. Each such movement of one file to one site is a **transfer**. The task cannot start until
+its transfer has arrived.
+
+A network is made of **links**, direct connections between two places. A file's **route** (also
+called its **path**) is the sequence of links it travels over. Two numbers describe a link:
+
+- **bandwidth** or **capacity**: how much data it can carry per second, measured in **Gbps**
+  (gigabits per second, billions of bits per second; 8 bits make 1 byte, so 100 Gbps moves
+  12.5 gigabytes per second);
+- **latency** or **delay**: how long a single bit takes to cross it, measured in milliseconds (ms).
+
+For big files, bandwidth matters far more than delay. A 10 GB file on a free 100 Gbps link takes
+0.8 seconds to send, while the delay adds only a few hundredths of a second.
+
+### 1.3 What goes wrong
+
+Links are shared. Other traffic (**background load**) uses part of every link, so the **free
+capacity** available to a workflow is the capacity minus what others are using, and it changes over
+time. Two kinds of trouble are studied:
+
+- **congestion**: a surge of other traffic fills one link, so everything crossing it slows to a crawl;
+- **link failure**: a link stops working for a while, so anything routed over it is stuck.
+
+The damage spreads through dependencies. A late file delays the task waiting for it. That task
+then finishes late, so the files it produces are late, and so on down the DAG. This is called a
+**cascade**: one stuck link can hold up a large part of the workflow, including files that never
+touched that link.
+
+To say what "late" means, each workflow gets a **deadline D**. The longest chain of dependent tasks
+is the **critical path**; even with an infinitely fast network the workflow could not finish sooner.
+D is set to 1.5 times the critical path, which leaves some slack for real network time. Each
+transfer also gets its own deadline: the latest moment it can arrive without making the workflow
+miss D. A **late transfer** arrives after its own deadline. Results are often written as a multiple
+of D: 0.80 D means the workflow finished with 20% of its time to spare, 1.17 D means it overran by
+17%.
+
+### 1.4 The decision to be made
+
+Something has to decide, for every transfer:
+
+- **which route** it takes;
+- **its priority**: how urgent it is. Here, priority 2 gets twice the share of a busy link that
+  priority 1 gets;
+- **when it may start**.
+
+It also has to decide **what to change when something happens**: a link fails or comes back, a
+surge starts or ends, or a transfer gives up after being stuck too long. Whatever makes these
+decisions is called a **planner**, and its decisions together form a **plan**.
+
+### 1.5 The question
+
+The repository asks:
+
+> **Can a small team of software agents, which see the network only through a set of tools, plan
+> those transfers better than simple rules, and where exactly does the benefit come from?**
+
+The words in that question, one by one:
+
+- A **software agent** is a program that gathers information, makes decisions and acts on its own,
+  within rules it is given. Here there are three, each with one job. The **workflow agent** works out
+  which transfers are most urgent, the **network agent** studies the routes and how busy each link
+  is, and the **coordinator** turns their advice into the final plan. Together they are the **agent
+  team**. In the main results they follow fixed rules (**rule mode**); a separate test hands the
+  coordinator's final decision to an AI language model (**LLM mode**).
+- **Seeing the network only through tools** means the agents cannot read the simulator's internals.
+  They can only ask a fixed set of questions, such as "how busy is each link right now?" or "what
+  are the fastest routes from here to there?". Each question is a **tool**.
+- **Simple rules** are two **baselines**, reference methods to compare against. The plain
+  **baseline** sends every file on its lowest-delay route and never changes anything. The second,
+  **baseline_reroute**, does the same but moves files around a failed link.
+- **Where exactly the benefit comes from** is the part that matters most. If the agents win, it could
+  be because they reroute around failures (which a simple rule can also do), because they make a
+  better plan before anything happens, or because they react well to events. The experiments are
+  built to separate these.
+
+### 1.6 How the project answers it
+
+**Real jobs, extracted into transfers.** The project reads the traces, assigns each task to a site,
+and works out every file that has to cross the network, with its size, the task it waits for and its
+deadline. This step is called **extraction**. Task placement and deadlines are invented
+(**synthetic**), since the traces don't contain them for this multi-site setting, but they are
+generated by fixed rules and labeled as synthetic everywhere.
+
+**A simulated network.** The transfers are run over a **simulation**, a program that plays out what
+would happen. A simulation of a real system you can run "what if" experiments on is often called a
+**digital twin**. This twin models six places and seven links with invented capacities and delays,
+background load that rises and falls, and three **scenarios**:
+- **normal**, with only background load;
+- **congestion**, with a surge on one link;
+- **link failure**, with one link down for a while.
+
+The simulation also runs each task when its files arrive, so delays cascade the way they would in
+practice.
+
+**Three planners on identical conditions.** Anything random in a run (where tasks are placed, how the
+background traffic wobbles) comes from a **random number generator** started from a number called a
+**seed**. The same seed always produces the same "random" situation. All three planners (baseline,
+baseline_reroute and the agents) are run on the same seeds, so each comparison is a **paired
+comparison**: the same situation handled three ways, with luck taken out. Each combination of
+workflow, scenario, seed and planner is one **run**; the main experiment has 180.
+
+**A standard tool interface (MCP).** The agents' tools are offered by a small **server**, a program
+that answers requests, using the **Model Context Protocol (MCP)**. MCP is an open standard for how AI
+programs discover and call tools. The agents talk to the server through an MCP **client**, the
+program that sends the requests. Because MCP is a standard, the same tools can be used by other MCP
+software, such as the MCP Inspector app or Claude Desktop. And if the simulated network were replaced
+by a real one behind the same server, the agents would not need to change.
+
+**Fairness built in.**
+- **No peeking.** The tools only describe the present. Even the tool that predicts how a plan will
+  turn out (a **forecast**) assumes today's conditions continue and knows nothing about upcoming
+  events. Automatic tests prove that a failure scheduled for later does not change a forecast made
+  before it.
+- **Tuning kept apart.** Adjusting settings, or **tuning**, was done only on two smaller practice
+  workflows and practice seeds. All settings were then locked before the evaluation runs.
+- **Ablations.** An **ablation** adds or removes one ingredient to measure what it is worth.
+  `baseline_reroute` measures what simple rerouting alone gives, and `agents_static` (the agents'
+  starting plan with no reactions to events) measures what reacting adds.
+
+**Every decision recorded and replayable.** Each decision any planner makes is written to a
+**decision log**: what triggered it, what the planner saw, which tools it asked, what it decided, and
+why. **Replay** re-runs a run using only its log, with no planner code, and checks that every result
+comes out identical. All 180 main runs replay exactly. This makes the agents' behavior auditable after
+the fact, which matters for any automated system that changes how a network is used.
+
+**Three measures of success**, called **metrics**:
+- **completion time**: when the last task finished, the main score (lower is better);
+- **late transfers**: how many files arrived after their deadlines;
+- **failed transfers**: how many files had at least one shipping attempt time out because their
+  route was blocked for too long.
+
+### 1.7 The answer
+
+Computed from the results (this paragraph is generated by a program from `results/`):
 
 <!-- SUMMARY:START -->
 Across 180 simulated runs, the agent team beat both baselines in all 120 same-seed comparisons and had 0 late transfers. Plain rerouting already fixes much of a link failure (83% of the agents' gain on 1000Genome 8ch, 53% on Montage 0.1°). Congestion is different: rerouting does nothing there, and on 1000Genome 8ch the agents finish at 0.83 D against 1.17 D, where D is the deadline.
 <!-- SUMMARY:END -->
+
+How to read it:
+
+- **"Same-seed comparisons"** pairs the agents with each baseline on every workflow, scenario and seed:
+  2 workflows × 3 scenarios × 10 seeds × 2 baselines = 120 pairs.
+- **"83% of the agents' gain"** means: under the link failure, take the improvement the agents made
+  over the plain baseline. Simple rerouting alone achieved 83% of that same improvement on 1000Genome,
+  and 53% on Montage. So rerouting explains much, but not all, of the benefit during an outage.
+- **"0.83 D against 1.17 D"** means: under congestion, the agents finished with 17% of the deadline to
+  spare, while the rerouting baseline (which ignores congestion) overran the deadline by 17%.
+- The rest of the answer (planning versus reacting, and where the agents gained little or lost) is in
+  [section 11](#11-results).
+
+### 1.8 Key terms
+
+| Term | Meaning |
+|---|---|
+| Workflow | A computation split into tasks that depend on each other |
+| Task | One computing job inside a workflow |
+| Dependency | Task B needs a file from task A, so B waits for A |
+| DAG | Directed acyclic graph: tasks and one-way dependency arrows with no loops |
+| Trace | The recorded description of a real workflow run (tasks, files, sizes, runtimes) |
+| Computing site | A data center where tasks run |
+| Wide-area network (WAN) | The long-distance network connecting sites |
+| Link | A direct connection between two places in the network |
+| Route / path | The sequence of links a transfer travels over |
+| Transfer | One file being sent to one site |
+| Bandwidth / capacity | Data per second a link can carry, in Gbps |
+| Latency / delay | Time for a bit to cross a link, in ms |
+| Background load | Other traffic sharing the links |
+| Free capacity | Capacity minus background load (zero if the link is down) |
+| Congestion | A surge of traffic filling a link |
+| Link failure | A link stops carrying traffic for a while |
+| Cascade | A delay spreading to later tasks through dependencies |
+| Critical path | The longest chain of dependent tasks |
+| Deadline D | 1.5 × the critical path; results are often given as a multiple of D |
+| Late transfer | A transfer that arrives after its own deadline |
+| Failed transfer | A transfer with at least one attempt that timed out |
+| Priority | Urgency of a transfer; priority 2 gets twice the share of a busy link |
+| Planner / plan | Whatever decides routes, priorities and start times / those decisions |
+| Software agent | A program that gathers information, decides and acts within given rules |
+| Agent team | The workflow agent, network agent and coordinator |
+| Baseline | A simple reference planner used for comparison |
+| Ablation | A variant with one ingredient added or removed, to measure it |
+| Simulation / digital twin | A program that plays out what would happen in a real system |
+| Scenario | One network situation: normal, congestion or link failure |
+| Synthetic | Invented for the experiment, not measured |
+| Seed | The starting number of a random number generator; same seed, same situation |
+| Paired comparison | Comparing planners on the same seed so luck plays no part |
+| Run | One workflow × scenario × seed × planner |
+| Tool | One question the agents may ask about the present state |
+| MCP | Model Context Protocol, an open standard for discovering and calling tools |
+| Server / client | The program offering the tools / the program calling them |
+| Forecast | A prediction that assumes current conditions continue unchanged |
+| Tuning | Adjusting settings; done only on practice data here |
+| Decision log | The record of every planner decision |
+| Replay | Re-running a run from its log and checking the results match exactly |
+| Metric | A measured outcome: completion time, late transfers, failed transfers |
+| Rule mode / LLM mode | Agents following fixed rules / the coordinator's final call made by an AI language model |
 
 ---
 
