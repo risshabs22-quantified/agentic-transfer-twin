@@ -8,6 +8,7 @@ Exits non-zero if any run mismatches.
 Usage:
     python scripts/replay.py --all
     python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents
+    python scripts/replay.py --dir results/ablation      # any folder with logs/ and manifests/
 """
 from __future__ import annotations
 
@@ -38,13 +39,14 @@ def main() -> None:
     g.add_argument("--run")
     g.add_argument("--all", action="store_true")
     g.add_argument("--llm", action="store_true", help="replay the recorded LLM-mode runs (no API calls)")
+    g.add_argument("--dir", help="replay every recorded run in a results folder, e.g. results/ablation")
     args = ap.parse_args()
     results_dir = RESULTS
     if args.all:
         exp = config.load_experiment()
         ids = [run_id(*x) for x in grid(exp)]
-    elif args.llm:
-        results_dir = RESULTS / "llm"
+    elif args.llm or args.dir:
+        results_dir = RESULTS / "llm" if args.llm else Path(args.dir).resolve()
         ids = sorted(p.name[:-5] for p in (results_dir / "manifests").glob("*.json"))
     else:
         ids = [args.run]

@@ -1,4 +1,4 @@
-Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). Full tables: [`results/table.md`](results/table.md).
+Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). 1.00 means finished exactly on time; lower is better. Full tables: [`results/table.md`](results/table.md).
 
 | Workflow | Scenario | baseline | baseline_reroute | agents |
 |---|---|---|---|---|

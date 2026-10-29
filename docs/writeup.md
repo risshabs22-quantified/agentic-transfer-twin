@@ -8,6 +8,13 @@ Risshab Shankar, November 2026
 Across 180 simulated runs, the agent team beat both baselines in all 120 same-seed comparisons and had 0 late transfers. Plain rerouting already fixes much of a link failure (83% of the agents' gain on 1000Genome 8ch, 53% on Montage 0.1°). Congestion is different: rerouting does nothing there, and on 1000Genome 8ch the agents finish at 0.83 D against 1.17 D, where D is the deadline.
 <!-- SUMMARY:END -->
 
+In plain words: science jobs spread over several computing centers have to ship files between them,
+and a jammed or closed connection delays everything downstream. I built a simulated network, ran
+real science jobs over it, and compared three ways of planning the file shipments: a simple rule, the
+same rule plus detours around closed roads, and a team of three AI agents. Times are given as a
+fraction of each job's deadline D, so 1.00 is exactly on time and lower is better. A non-technical
+walkthrough of the whole project is in [`PLAIN_ENGLISH.md`](PLAIN_ENGLISH.md).
+
 ## 2. Goal
 
 This project tests, in a small and fully reproducible setting, the plan I proposed on October 23.

@@ -1,6 +1,10 @@
 # Build log
 
-Running record of how this repo was built, stage by stage.
+Running record of how this repo was built, stage by stage. In plain words: this is the project's
+lab notebook. Each entry says what was built, what it showed, and the commands to check it. The
+"Deviations" table lists every place the build differs from the original plan, why, and how to
+verify it, and the "Tuning table" shows how the settings were chosen. For a non-technical overview,
+read [`PLAIN_ENGLISH.md`](PLAIN_ENGLISH.md) first.
 Every entry says what was built, why, and the commands to verify it.
 
 ## Progress
@@ -507,3 +511,14 @@ its exact rules and parameters, LLM mode, the tools with real example outputs, l
 and replay, tuning and experiments, every output file, results, a table of limitations with what
 was done about each, tests, and how to extend the code. Its results, summary and findings are
 synced from `results/` like the README's, and `tests/test_docs_consistency.py` now checks it too.
+
+### Plain-English documentation (2026-10-30)
+
+Added `docs/PLAIN_ENGLISH.md`, a walkthrough of the whole project for readers who don't code: the
+problem, every component explained from scratch, how fairness is kept, the flight-recorder logs and
+replay, the experiments, how to read the results (synced from `results/` like the other docs), the
+limitations with what was done about each, one file's journey, a folder map, run instructions and a
+full glossary. Every section of `docs/HOW_IT_WORKS.md` now opens with an "In plain words" summary,
+and the README, write-up and this log open with plain-language introductions. `scripts/replay.py`
+gained `--dir`, and all supplementary runs were replayed with it: ablation 60/60, competing 30/30,
+max-min 180/180, LLM 61/61.

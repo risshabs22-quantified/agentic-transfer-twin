@@ -5,8 +5,9 @@ follows (with the actual numbers), the limits of the setup and what was done abo
 every file the experiments produce. The [write-up](writeup.md) is the short report; this is the
 long version.
 
-If you only have five minutes, read sections 1 and 11. If you want to change something, read
-section 13 first.
+If you don't write code, start with the [plain-English guide](PLAIN_ENGLISH.md), which covers the same
+ground without technical terms. Here, each section opens with a one-paragraph plain summary. If you only
+have five minutes, read sections 1 and 11; if you want to change something, read section 13 first.
 
 **Contents**
 
@@ -29,6 +30,8 @@ section 13 first.
 ---
 
 ## 1. The idea
+
+> **In plain words:** Science jobs are split into many steps at different computing centers, and files have to travel between them. This project tests whether a team of programs can plan those trips better than simple rules, and why.
 
 Scientific workflows such as 1000Genome (genomics) and Montage (astronomy image mosaics) are made
 of hundreds of tasks spread across computing sites. A task often needs a file that another task
@@ -60,6 +63,8 @@ Across 180 simulated runs, the agent team beat both baselines in all 120 same-se
 ---
 
 ## 2. How one run works, end to end
+
+> **In plain words:** One "run" is one complete test: one science job, one network situation, one seed, one planner. This section follows a run from the moment its settings are written down to the moment its results are saved.
 
 A **run** is one combination of workflow, scenario, seed and planner, for example
 `1000genome-8ch__link_failure__seed3__agents`.
@@ -106,6 +111,8 @@ Step by step (`att/experiment.py::execute`):
 
 ## 3. Workflows and extraction
 
+> **In plain words:** The project starts from published records of real science jobs, works out which computing center each step runs at, which files must travel, and when each file is due.
+
 **Data.** Four public traces from the [WfCommons WfInstances](https://github.com/wfcommons/WfInstances)
 project (LGPL-3.0, credited in `data/NOTICE.md`), downloaded by `scripts/fetch_data.py` and committed
 in `data/raw/`. From each trace (WfFormat 1.6) the code reads only: task ids, parents, children, input
@@ -145,6 +152,8 @@ order above. `tests/test_extract.py` checks these exactly.
 ---
 
 ## 4. The network model
+
+> **In plain words:** The network is a made-up map of six places and seven connections. Each connection has a size and a travel time, other traffic comes and goes on it, and in some tests one connection jams or closes.
 
 All of this is synthetic. Site names are for flavor; the numbers are invented.
 
@@ -197,6 +206,8 @@ scenario.
 ---
 
 ## 5. The simulator
+
+> **In plain words:** The simulator plays out the whole job, like a precise fast-forward movie: files move over their routes, sharing each connection; steps start when their files arrive; and everything is measured.
 
 `att/simulator.py`. The simulator is the "twin": it moves bytes over the network model and runs the
 workflow's tasks.
@@ -280,6 +291,8 @@ could take zero-length steps forever; it was found during development.
 ---
 
 ## 6. Planners: baselines and agents
+
+> **In plain words:** A planner decides each file's route, how urgent it is, and when it may start. Two simple rule-based planners are compared with a team of three agents that work out urgency, check routes and make the final plan.
 
 Every planner implements `plan(transfers, view)` and `on_event(event, view)` (`att/planner.py`). The
 `view` shows only the present: the clock, each link's capacity, delay, free capacity and up/down
@@ -389,6 +402,8 @@ and raw answer of every call are stored in the decision log.
 
 ## 7. Tools and the MCP server
 
+> **In plain words:** The agents cannot look inside the simulator. They can only ask a fixed list of questions through a standard "service window" (MCP), and every answer describes the present, never the future.
+
 `att/tools.py` holds the tool functions. They take a view, return plain JSON, and expose only the
 present. `att/mcp_server.py::build_server(view)` registers each one as an MCP tool. Values that
 cannot exist (a path through a down link has no finite time) come back as `null`.
@@ -447,6 +462,8 @@ To use the tools from Claude Desktop, add this to `claude_desktop_config.json` (
 
 ## 8. Decision logs, manifests and replay
 
+> **In plain words:** Every decision is written down, like a flight recorder. Replay re-runs a test using only those records and checks that every result comes out identical.
+
 **Decision log** (`att/decision_log.py`). One JSON line per planner call, gzip-compressed, in
 `results/logs/<run_id>.jsonl.gz`. Every planner is logged, baselines included, and "no change"
 answers are logged too. Fields:
@@ -478,12 +495,15 @@ difference, unused logged decision or unexpected event is reported and the scrip
 ```bash
 python scripts/replay.py --all                    # the 180 main runs
 python scripts/replay.py --llm                    # the LLM-mode runs
+python scripts/replay.py --dir results/ablation   # any supplementary folder (ablation, competing, maxmin)
 python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents
 ```
 
 ---
 
 ## 9. Experiments and tuning
+
+> **In plain words:** The main test is 180 runs. Settings were adjusted only on practice data before the test, then locked, so the final results could not be tuned in anyone's favor.
 
 **Main grid** (`scripts/run_experiments.py`): 2 result workflows × 3 scenarios × 10 evaluation seeds
 (0–9) × 3 planners = 180 runs. Runs do not depend on each other. `summary.csv` is rebuilt from the
@@ -522,11 +542,14 @@ combinations of `priority_fraction` {0.1, 0.2, 0.3, 0.5}, `move_margin` {0, 0.1,
 | `run_maxmin.py` | all 180 runs under max-min fair sharing | `results/maxmin/` |
 | `run_llm.py` | `agents` in LLM mode on the 60 result cells (costs money) | `results/llm/` |
 
-Every supplementary run has its own log and manifest and is replayed when recorded.
+Every supplementary run has its own log and manifest, and all of them replay exactly
+(`python scripts/replay.py --dir results/<folder>`).
 
 ---
 
 ## 10. Outputs: every file in `results/`
+
+> **In plain words:** This is a map of every file the experiments produce and what each one contains.
 
 | Path | What it is | Made by |
 |---|---|---|
@@ -559,11 +582,13 @@ them drifts from the files above. No number in those blocks is typed by hand.
 
 ## 11. Results
 
+> **In plain words:** Times are shown as a fraction of the deadline D: 1.00 is exactly on time, below 1.00 is early, above 1.00 is late. Lower is better.
+
 Mean over 10 seeds; D is the workflow's deadline. Full tables with standard deviations, paired
 comparisons and the supplementary experiments are in [`results/table.md`](../results/table.md).
 
 <!-- RESULTS:START -->
-Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). Full tables: [`results/table.md`](results/table.md).
+Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). 1.00 means finished exactly on time; lower is better. Full tables: [`results/table.md`](results/table.md).
 
 | Workflow | Scenario | baseline | baseline_reroute | agents |
 |---|---|---|---|---|
@@ -609,6 +634,8 @@ The supplementary experiments (details in `results/table.md`):
 
 ## 12. Limitations and how they were handled
 
+> **In plain words:** Every simplification in the setup, why it matters, what was done to check or reduce its effect, and what is still open.
+
 | Limitation | Why it matters | What was done | What remains |
 |---|---|---|---|
 | The network is synthetic | Numbers are not measurements | Everything synthetic is labeled; all scenario times are fractions of D; the twin sits behind `TwinView` and the tools, the places real data would plug in | No real topology or telemetry |
@@ -632,6 +659,8 @@ how to check it.
 ---
 
 ## 13. Running, testing and extending
+
+> **In plain words:** How to run everything, what each automatic check verifies, and where to make changes to try something new.
 
 **Setup and the main pipeline**
 
@@ -696,6 +725,8 @@ real state, keeping the view's methods. The tools, the MCP server and the agents
 
 ## 14. One transfer, start to finish
 
+> **In plain words:** One real file followed through one real run, from the recipe it comes from to the moment it arrives, and how each planner handled it.
+
 The file `chr3n-4001-5001.tar.gz` from the 1000Genome 8ch trace, in run
 `1000genome-8ch__link_failure__seed3__agents`. Every number below is printed by:
 
@@ -741,6 +772,8 @@ re-runs it from that log alone and prints `REPLAY OK`.
 ---
 
 ## 15. Glossary
+
+> **In plain words:** Short definitions of the terms used in this document. The [plain-English guide](PLAIN_ENGLISH.md) has a longer, non-technical glossary.
 
 - **Bandwidth vs. latency.** Bandwidth is how much data per second a link carries; latency (delay) is
   how long a bit takes to cross it. Large files depend on bandwidth, small messages on latency.

@@ -1,15 +1,20 @@
 # agentic-transfer-twin
 
-Three AI agents (workflow, network, coordinator) plan the data transfers of real scientific
-workflows over a simulated network with congestion and a link failure. They use tools served by an
-MCP server, every decision is logged and replayable, and they are compared with simple rule-based
-baselines. A preliminary trial for the SciNet project.
+Big science projects run as hundreds of computing steps spread across different computing centers,
+and files have to travel over the network between them. When a connection jams or fails, files
+arrive late and the whole project waits. This project tests whether a team of three AI agents can
+plan those file transfers better than simple rules, using real science jobs and a simulated network
+with a traffic jam and a link failure. The agents use tools served by an MCP server, every decision
+is logged and replays exactly, and everything is compared on identical conditions. A preliminary
+trial for the SciNet project.
 
 <!-- SUMMARY:START -->
 Across 180 simulated runs, the agent team beat both baselines in all 120 same-seed comparisons and had 0 late transfers. Plain rerouting already fixes much of a link failure (83% of the agents' gain on 1000Genome 8ch, 53% on Montage 0.1°). Congestion is different: rerouting does nothing there, and on 1000Genome 8ch the agents finish at 0.83 D against 1.17 D, where D is the deadline.
 <!-- SUMMARY:END -->
 
-**Read:** [write-up](docs/writeup.md) (short report) · [how it works](docs/HOW_IT_WORKS.md) (complete reference: every rule, limitation and output) · [build log](docs/BUILD_LOG.md)
+**Read:** [plain-English guide](docs/PLAIN_ENGLISH.md) (no coding knowledge needed; start here) ·
+[write-up](docs/writeup.md) (short research report) · [how it works](docs/HOW_IT_WORKS.md) (technical
+reference: every rule, limitation and output) · [build log](docs/BUILD_LOG.md)
 
 **Real vs. synthetic:** the workflow traces (tasks, dependencies, file sizes, runtimes) are real
 public data. Everything else is synthetic and labeled so: task placement, deadlines, the network
@@ -33,7 +38,7 @@ Planners:
 - **agents:** the three agents, which see the network only through MCP tools.
 
 <!-- RESULTS:START -->
-Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). Full tables: [`results/table.md`](results/table.md).
+Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). 1.00 means finished exactly on time; lower is better. Full tables: [`results/table.md`](results/table.md).
 
 | Workflow | Scenario | baseline | baseline_reroute | agents |
 |---|---|---|---|---|

@@ -28,7 +28,8 @@ BLOCKS = {"SUMMARY": RESULTS / "headline.md", "RESULTS": RESULTS / "table.md",
           "FINDINGS": RESULTS / "key_findings.md"}
 # The README and HOW_IT_WORKS show a compact table; the write-up shows the full one.
 README_BLOCKS = {**BLOCKS, "RESULTS": RESULTS / "table_short.md"}
-DOCS = [config.ROOT / "README.md", config.ROOT / "docs" / "writeup.md", config.ROOT / "docs" / "HOW_IT_WORKS.md"]
+DOCS = [config.ROOT / "README.md", config.ROOT / "docs" / "writeup.md", config.ROOT / "docs" / "HOW_IT_WORKS.md",
+        config.ROOT / "docs" / "PLAIN_ENGLISH.md"]
 
 
 def load(path: Path = RESULTS / "summary.csv") -> pd.DataFrame:
@@ -309,6 +310,7 @@ def dev_comparison() -> dict[tuple[str, str], tuple[float, float]]:
 def make_short_table(df: pd.DataFrame) -> str:
     """One row per workflow x scenario: mean completion (x D) and late transfers per planner."""
     L = ["Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). "
+         "1.00 means finished exactly on time; lower is better. "
          "Full tables: [`results/table.md`](results/table.md).", "",
          "| Workflow | Scenario | baseline | baseline_reroute | agents |", "|---|---|---|---|---|"]
     for w in dict.fromkeys(df.workflow):

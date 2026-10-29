@@ -3,7 +3,8 @@ import pytest
 
 from tests.helpers import ROOT
 
-DOCS = [ROOT / "README.md", ROOT / "docs" / "writeup.md", ROOT / "docs" / "HOW_IT_WORKS.md"]
+DOCS = [ROOT / "README.md", ROOT / "docs" / "writeup.md", ROOT / "docs" / "HOW_IT_WORKS.md",
+        ROOT / "docs" / "PLAIN_ENGLISH.md"]
 BLOCKS = {"SUMMARY": "results/headline.md", "RESULTS": "results/table.md", "FINDINGS": "results/key_findings.md"}
 
 
