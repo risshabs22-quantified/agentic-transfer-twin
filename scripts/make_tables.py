@@ -106,10 +106,65 @@ def make_table(df: pd.DataFrame, abl: pd.DataFrame | None) -> str:
     mm_path = RESULTS / "maxmin" / "summary.csv"
     if mm_path.exists():
         L += maxmin_section(df, pd.read_csv(mm_path))
+    llm_path = RESULTS / "llm" / "summary.csv"
+    if llm_path.exists() and len(pd.read_csv(llm_path)):
+        L += llm_section(df, pd.read_csv(llm_path))
     comp_path = RESULTS / "competing" / "summary.csv"
     if comp_path.exists():
         L += competing_section(pd.read_csv(comp_path))
     return "\n".join(L) + "\n"
+
+
+def llm_decision_stats() -> dict[str, int]:
+    """Count LLM decisions in the recorded LLM-mode runs: total, agreed with the rule, fell back."""
+    import gzip
+    import json
+    out = {"llm_calls": 0, "agreed_with_rule": 0, "fallbacks": 0}
+    for log in sorted((RESULTS / "llm" / "logs").glob("*.jsonl.gz")):
+        if not any(log.name.startswith(w) for w in ("1000genome-8ch__", "montage-01d__")):
+            continue  # the dev smoke test is not part of the reported runs
+        for line in gzip.open(log, "rt"):
+            r = json.loads(line)["saw"].get("review")
+            if not r:
+                continue
+            if r["status"] != "ok":
+                out["fallbacks"] += 1
+                continue
+            out["llm_calls"] += 1
+            if r.get("draft", "x") == r.get("rule_choice") or r.get("action", "x") == r.get("rule_would"):
+                out["agreed_with_rule"] += 1
+    return out
+
+
+def llm_section(df: pd.DataFrame, llm: pd.DataFrame) -> list[str]:
+    """Stretch goal 5: the agent team with Claude making the coordinator's final call (mode=llm)."""
+    import json
+    llm = llm.copy()
+    llm["planner"] = "agents_llm"
+    llm["D"] = llm.workflow.map(df.attrs["D"])
+    llm["completion_D"] = llm.completion_s / llm.D
+    both = pd.concat([df, llm])
+    st = llm_decision_stats()
+    spend = json.loads((RESULTS / "llm" / "spend.json").read_text()) if (RESULTS / "llm" / "spend.json").exists() else {}
+    L = ["", f"**Supplementary: LLM mode** (`mode=llm`, reported separately; not part of the 180 main runs). "
+         f"Same {len(llm)} cells as `agents`, but Claude ({spend.get('model', 'claude')}) makes the coordinator's final "
+         "decision (one call per initial plan and per event that has a proposal). "
+         f"{st['llm_calls']} Claude decisions, {st['agreed_with_rule']} identical to what the rule coordinator would "
+         f"have chosen, {st['fallbacks']} fallbacks to rules; API spend upper bound "
+         f"${spend.get('usd_upper_bound', 0):.2f} (including a dev smoke test).", "",
+         "| Workflow | Scenario | agents, rule (× D) | agents, LLM (× D) | late: rule / LLM | LLM faster than rule | LLM faster than baseline / baseline_reroute |",
+         "|---|---|---|---|---|---|---|"]
+    for w in dict.fromkeys(df.workflow):
+        for s in SCEN_ORDER:
+            if cell(both, w, s, "agents_llm").empty:
+                continue
+            r = paired(both, w, s, "agents_llm", "agents")
+            b = [paired(both, w, s, "agents_llm", x) for x in ("baseline", "baseline_reroute")]
+            L.append(f"| {NICE[w]} | {NICE[s]} | {pm(cell(both, w, s, 'agents').completion_D, '.3f')} | "
+                     f"{pm(cell(both, w, s, 'agents_llm').completion_D, '.3f')} | "
+                     f"{m(both, w, s, 'agents', 'late'):.1f} / {m(both, w, s, 'agents_llm', 'late'):.1f} | "
+                     f"{r['wins']}/{r['n']} (slower on {r['losses']}) | {b[0]['wins']}/{b[0]['n']} / {b[1]['wins']}/{b[1]['n']} |")
+    return L
 
 
 def maxmin_section(df: pd.DataFrame, mm: pd.DataFrame) -> list[str]:

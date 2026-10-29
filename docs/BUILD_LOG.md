@@ -60,6 +60,7 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 24 | stretch | **Cross-platform reproduction is exact to the last bit for all but one value.** CI (Linux x86-64) replays the committed logs (180/180 OK), re-runs all 180 experiments and compares with the committed `summary.csv` using `scripts/check_summary.py` (ints/bools/text exact, floats within 1e-9 relative). Result: 2879 of 2880 values byte-identical; the one exception is `data_wait_s` in one row (7085.066725301376 on macOS arm64 vs …378 on Linux), a difference in the 16th significant digit. | Bit-identical floats across CPU architectures are not guaranteed (numpy's vectorized `sin` and libm differ in the last bit between ARM and x86). The DoD requirement (fresh clone reproduces `summary.csv` byte-for-byte) holds on the same platform, verified in Stage 10; across platforms the honest guarantee is the replay tolerance. | GitHub Actions job `reproduce`; `python scripts/check_summary.py a.csv b.csv`. |
 | 25 | stretch | **Competing workflows** support: `extract.merge_workflows` prefixes every task/file id with its workflow name; the simulator keeps each workflow's own D (`members`), re-samples capacity on the shortest workflow's grid, gives each transfer the timeout of its own workflow (0.1 × its own D), and reports per-workflow completion/late/failed (`<workflow>:...` metrics). Single-workflow runs are unchanged (verified: replay 180/180 and `summary.csv` byte-identical after the change). | Judging Montage on 1000Genome's clock (a 60 s timeout for a 32 s workflow) would be meaningless. | `tests/test_competing.py`. |
 | 26 | stretch | Optional **weighted max-min fair sharing** (`Simulator(sharing="maxmin")`, set via `simulator.sharing` in a run's settings; default stays `proportional`, used for all main results). | Checks that the conclusions don't depend on the simplified sharing rule. | `tests/test_simulator.py::test_maxmin_gives_unused_capacity_to_others` (hand-checked rates: 50 vs. 90 Gbps). |
+| 27 | stretch | **LLM mode** differs from CLAUDE.md section 12 in three ways: (a) **no temperature setting** — since 2026-10-21 the Claude API rejects `temperature` on every model, so "temperature 0" is impossible; reproducibility comes from the decision log instead (every prompt and raw answer is logged and all LLM runs replay exactly with no API calls); (b) **Claude does not call the MCP tools itself** — the coordinator makes the tool calls and passes their results, because CLAUDE.md allows at most one LLM call per plan/event and a tool-using loop needs one API call per tool round; (c) Claude is consulted only when there is a decision to make (initial plan, or an event whose rule proposal is non-empty). Also: refusal fallbacks (`fallbacks: "default"`) are enabled; a hard spend cap (default $25, conservative pricing) stops runs before any call that could exceed it; recorded runs are never re-run (no double spending). Dependency added: `anthropic==2.3.0` (optional, LLM mode only). | Follows the current API; keeps the one-call limit; keeps cost bounded and auditable. | `tests/test_llm_mode.py` (offline, mocked API); `python scripts/replay.py --llm`. |
 
 ## Tuning table
 
@@ -450,3 +451,22 @@ cmp results/summary.csv <(git show HEAD:results/summary.csv) && echo identical
 - README: a Claude Desktop `mcpServers` config snippet for the demo MCP server (same command the
   stdio demo client already exercises).
 - Stretch goal 5 (LLM mode) not started: it needs Risshab's API key and explicit OK (costs money).
+
+### 2026-10-29 — Stretch goal 5: LLM mode (with Risshab's key and OK: Claude Opus 5.5, cap $25)
+
+- Key stored only in the gitignored `.env` (permissions 600); verified with the free `/v1/models`
+  endpoint; never committed (checked the staged diff before every commit).
+- `att/llm.py` (one structured-output Claude call, spend ledger in `results/llm/spend.json`, hard
+  cap), `att/agents/llm_coordinator.py` (`LLMAgentTeam`: same agents/tools; Claude picks the draft
+  and may flip priorities, and on events applies/keeps/customises the coordinator's proposal from
+  listed route options; validated; rule fallback on any failure). The rule coordinator got two
+  review hooks; rule-mode logs and `summary.csv` verified byte-identical afterwards.
+- One dev smoke test (1000Genome 2ch, link_failure, seed 100), then the 60 result-workflow runs
+  (seeds 0–9) — the prompt was not changed after seeing any evaluation result.
+- Result (`results/table.md`, "Supplementary: LLM mode"): 131 API calls, spend upper bound $5.94;
+  0 fallbacks; Claude's decision matched the rule coordinator's in 114 of 129 decisions; LLM mode
+  was faster than rule mode on 2/10 seeds per 1000Genome scenario (never slower) and essentially
+  tied on Montage (slower on 4/10 congestion seeds by small margins); it beat both baselines on
+  every seed. All 61 LLM runs replay exactly without calling the API (`scripts/replay.py --llm`).
+- **Risshab: rotate the API key** (it was pasted into a chat): platform.claude.com → Settings →
+  API Keys → delete it; then delete `.env` or put a new key in it.

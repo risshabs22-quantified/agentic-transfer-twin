@@ -329,7 +329,7 @@ All of these come from the public WfInstances traces.
   real scheduler would.
 - **Compute is unlimited.** Any number of tasks can run at once at a site.
 - **File sizes are multiplied** so the network matters.
-- **The agents are rules, not a language model.**
+- **The main results use rules, not a language model.** LLM mode is one small supplementary test.
 - **Forecasts are persistence-only.** They assume the network stays as it is now, which is wrong
   when an outage or surge will end.
 - **The test set is small.** It covers one workflow at a time, one event per scenario, two result
@@ -455,11 +455,18 @@ python scripts/run_experiments.py --workflows montage-01d --scenarios link_failu
    the same tool functions and MCP server. The agents wouldn't change, because they only see tools.
 
 7. **Where would an LLM actually help?**
-   - choosing between the coordinator's drafts when forecasts disagree;
-   - explaining decisions to operators;
-   - handling events the rules don't cover (a partial capacity cut, a maintenance notice in text).
-
-   It would need to beat these rules on the same seeds, with every call logged.
+   I tested it (`python scripts/run_llm.py`; the "LLM mode" section of `results/table.md`).
+   - **How it works.** The same agents do the analysis through the same MCP tools. Then Claude
+     (Claude Opus 5.5) makes the coordinator's final call, one API call per plan or event. Every
+     answer is validated, and the run falls back to the rules if an answer is unusable.
+   - **What happened.** Claude agreed with the rule coordinator in most decisions. It found a
+     slightly better initial plan on a few 1000Genome seeds, and it was a wash on Montage.
+   - **Where an LLM could matter more.** In situations the rules don't cover: text maintenance
+     notices, partial outages, explaining decisions to operators, or many workflows with fairness
+     trade-offs.
+   - **Reproducibility.** The API can no longer be set to temperature 0, so runs come out
+     differently each time. The logs keep every prompt and answer, and all LLM runs replay exactly
+     without calling the API.
 
 8. **What happens with 100 competing workflows?**
    Not tested. I tested **two**: 1000Genome 8ch and Montage 0.1° sharing the normal network at once
@@ -565,7 +572,7 @@ python scripts/run_experiments.py --workflows montage-01d --scenarios link_failu
 27. **What would you do next?**
     - two workflows competing;
     - forecasts that know events end;
-    - an LLM coordinator compared on the same seeds;
+    - an LLM coordinator that calls the MCP tools itself, on more seeds;
     - a real topology if available.
 
 28. **What part did Claude Code do?**
