@@ -1,0 +1,599 @@
+{
+ "seeds": [
+  100,
+  101,
+  102,
+  103,
+  104
+ ],
+ "scales": [
+  10,
+  20,
+  50,
+  100,
+  200,
+  300,
+  500,
+  1000
+ ],
+ "workflows": {
+  "1000genome-2ch": {
+   "scale_sweep": {
+    "10": {
+     "completion_over_D": 0.6813473985063536,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    },
+    "20": {
+     "completion_over_D": 0.6961441008546281,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    },
+    "50": {
+     "completion_over_D": 0.7398760548819896,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    },
+    "100": {
+     "completion_over_D": 0.8134848310814558,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    },
+    "200": {
+     "completion_over_D": 0.9555242697209507,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    },
+    "300": {
+     "completion_over_D": 1.0922522721907666,
+     "late": 16.8,
+     "late_frac": 0.2837189630293079,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    },
+    "500": {
+     "completion_over_D": 1.384860685427319,
+     "late": 28.4,
+     "late_frac": 0.47803950838433595,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    },
+    "1000": {
+     "completion_over_D": 2.090267251515545,
+     "late": 28.4,
+     "late_frac": 0.47803950838433595,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 59.4,
+     "D": 307.029
+    }
+   },
+   "scenarios": {
+    "congestion": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "surge",
+        "link": [
+         "StarLight",
+         "ORNL"
+        ],
+        "start_frac": 0.05,
+        "end_frac": 0.5,
+        "extra_load": 0.7
+       }
+      ],
+      "completion_over_D": 1.1954822188571153,
+      "late": 9.6,
+      "late_frac": 0.16053938398765982,
+      "failed_transfers": 0.0,
+      "completed": 5,
+      "n_transfers": 59.4,
+      "D": 307.029,
+      "stressed": true
+     }
+    ],
+    "link_failure": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "down",
+        "link": [
+         "StarLight",
+         "Caltech"
+        ],
+        "start_frac": 0.15,
+        "end_frac": 0.75
+       }
+      ],
+      "completion_over_D": 1.6779802677983624,
+      "late": 21.0,
+      "late_frac": 0.35416529830322935,
+      "failed_transfers": 7.4,
+      "completed": 5,
+      "n_transfers": 59.4,
+      "D": 307.029,
+      "stressed": true
+     }
+    ]
+   },
+   "overrides": {},
+   "data_scale": 200
+  },
+  "montage-005d": {
+   "scale_sweep": {
+    "10": {
+     "completion_over_D": 0.6779154096848161,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    },
+    "20": {
+     "completion_over_D": 0.6786473886723144,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    },
+    "50": {
+     "completion_over_D": 0.6818022508069637,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    },
+    "100": {
+     "completion_over_D": 0.6882236842111045,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    },
+    "200": {
+     "completion_over_D": 0.703822092641599,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    },
+    "300": {
+     "completion_over_D": 0.722895779556393,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    },
+    "500": {
+     "completion_over_D": 0.779401853164839,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    },
+    "1000": {
+     "completion_over_D": 0.9624633726529886,
+     "late": 1.4,
+     "late_frac": 0.009790209790209791,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 139.8,
+     "D": 32.078
+    }
+   },
+   "scenarios": {
+    "congestion": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "surge",
+        "link": [
+         "StarLight",
+         "ORNL"
+        ],
+        "start_frac": 0.05,
+        "end_frac": 0.5,
+        "extra_load": 0.7
+       }
+      ],
+      "completion_over_D": 0.9624633726529886,
+      "late": 1.4,
+      "late_frac": 0.009790209790209791,
+      "failed_transfers": 0.0,
+      "completed": 5,
+      "n_transfers": 139.8,
+      "D": 32.078,
+      "stressed": true
+     }
+    ],
+    "link_failure": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "down",
+        "link": [
+         "StarLight",
+         "Caltech"
+        ],
+        "start_frac": 0.15,
+        "end_frac": 0.75
+       }
+      ],
+      "completion_over_D": 1.1920692556883157,
+      "late": 61.8,
+      "late_frac": 0.44092734872606626,
+      "failed_transfers": 17.2,
+      "completed": 5,
+      "n_transfers": 139.8,
+      "D": 32.078,
+      "stressed": true
+     }
+    ]
+   },
+   "overrides": {},
+   "data_scale": 1000
+  },
+  "1000genome-8ch": {
+   "scale_sweep": {
+    "10": {
+     "completion_over_D": 0.6937140373190056,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    },
+    "20": {
+     "completion_over_D": 0.7223743740562337,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    },
+    "50": {
+     "completion_over_D": 0.8186690724055088,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    },
+    "100": {
+     "completion_over_D": 0.9732595311690642,
+     "late": 0.6,
+     "late_frac": 0.003428571428571429,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    },
+    "200": {
+     "completion_over_D": 1.2892640420156891,
+     "late": 58.8,
+     "late_frac": 0.33084167641928147,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    },
+    "300": {
+     "completion_over_D": 1.6019191464762543,
+     "late": 98.6,
+     "late_frac": 0.554258582563902,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    },
+    "500": {
+     "completion_over_D": 2.232757192062409,
+     "late": 131.4,
+     "late_frac": 0.7382467500922687,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    },
+    "1000": {
+     "completion_over_D": 3.7969417314279297,
+     "late": 141.6,
+     "late_frac": 0.7956099637549723,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 178.0,
+     "D": 601.916
+    }
+   },
+   "scenarios": {
+    "congestion": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "surge",
+        "link": [
+         "StarLight",
+         "ORNL"
+        ],
+        "start_frac": 0.05,
+        "end_frac": 0.5,
+        "extra_load": 0.7
+       }
+      ],
+      "completion_over_D": 1.1793675390764182,
+      "late": 26.8,
+      "late_frac": 0.15081045490822026,
+      "failed_transfers": 0.0,
+      "completed": 5,
+      "n_transfers": 178.0,
+      "D": 601.916,
+      "stressed": true
+     }
+    ],
+    "link_failure": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "down",
+        "link": [
+         "StarLight",
+         "Caltech"
+        ],
+        "start_frac": 0.15,
+        "end_frac": 0.75
+       }
+      ],
+      "completion_over_D": 1.7112189083588234,
+      "late": 95.4,
+      "late_frac": 0.5359165433788946,
+      "failed_transfers": 33.8,
+      "completed": 5,
+      "n_transfers": 178.0,
+      "D": 601.916,
+      "stressed": true
+     }
+    ]
+   },
+   "overrides": {},
+   "data_scale": 100
+  },
+  "montage-01d": {
+   "scale_sweep": {
+    "10": {
+     "completion_over_D": 0.6789789012296787,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    },
+    "20": {
+     "completion_over_D": 0.6804599352845674,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    },
+    "50": {
+     "completion_over_D": 0.6848957903112552,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    },
+    "100": {
+     "completion_over_D": 0.6997557067299459,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    },
+    "200": {
+     "completion_over_D": 0.7727038614531253,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    },
+    "300": {
+     "completion_over_D": 0.8585841677405022,
+     "late": 0.0,
+     "late_frac": 0.0,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    },
+    "500": {
+     "completion_over_D": 1.017033861965073,
+     "late": 8.4,
+     "late_frac": 0.034609546297857986,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    },
+    "1000": {
+     "completion_over_D": 1.4527730683547924,
+     "late": 130.0,
+     "late_frac": 0.5481722740632364,
+     "failed_transfers": 0.0,
+     "completed": 5,
+     "n_transfers": 236.0,
+     "D": 31.683
+    }
+   },
+   "scenarios": {
+    "congestion": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "surge",
+        "link": [
+         "StarLight",
+         "ORNL"
+        ],
+        "start_frac": 0.05,
+        "end_frac": 0.5,
+        "extra_load": 0.7
+       }
+      ],
+      "completion_over_D": 0.8585841677405022,
+      "late": 0.0,
+      "late_frac": 0.0,
+      "failed_transfers": 0.0,
+      "completed": 5,
+      "n_transfers": 236.0,
+      "D": 31.683,
+      "stressed": false
+     },
+     {
+      "step": "(a) moved to busiest link",
+      "events": [
+       {
+        "type": "surge",
+        "link": [
+         "StarLight",
+         "FNAL"
+        ],
+        "start_frac": 0.05,
+        "end_frac": 0.5,
+        "extra_load": 0.7
+       }
+      ],
+      "completion_over_D": 0.859217999403724,
+      "late": 0.0,
+      "late_frac": 0.0,
+      "failed_transfers": 0.0,
+      "completed": 5,
+      "n_transfers": 236.0,
+      "D": 31.683,
+      "stressed": false
+     },
+     {
+      "step": "(b) extra_load 1.0 (load cap)",
+      "events": [
+       {
+        "type": "surge",
+        "link": [
+         "StarLight",
+         "FNAL"
+        ],
+        "start_frac": 0.05,
+        "end_frac": 0.5,
+        "extra_load": 1.0
+       }
+      ],
+      "completion_over_D": 0.8594292091955259,
+      "late": 0.0,
+      "late_frac": 0.0,
+      "failed_transfers": 0.0,
+      "completed": 5,
+      "n_transfers": 236.0,
+      "D": 31.683,
+      "stressed": false
+     },
+     {
+      "step": "(c) kept as configured; reported as a finding",
+      "events": [
+       {
+        "type": "surge",
+        "link": [
+         "StarLight",
+         "ORNL"
+        ],
+        "start_frac": 0.05,
+        "end_frac": 0.5,
+        "extra_load": 0.7
+       }
+      ],
+      "stressed": false
+     }
+    ],
+    "link_failure": [
+     {
+      "step": "as configured",
+      "events": [
+       {
+        "type": "down",
+        "link": [
+         "StarLight",
+         "Caltech"
+        ],
+        "start_frac": 0.15,
+        "end_frac": 0.75
+       }
+      ],
+      "completion_over_D": 1.092270215584921,
+      "late": 79.0,
+      "late_frac": 0.33433616946179556,
+      "failed_transfers": 39.8,
+      "completed": 5,
+      "n_transfers": 236.0,
+      "D": 31.683,
+      "stressed": true
+     }
+    ]
+   },
+   "overrides": {},
+   "data_scale": 300
+  }
+ }
+}

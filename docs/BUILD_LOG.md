@@ -9,7 +9,7 @@ Every entry says what was built, why, and the commands to verify it.
 - [x] Stage 1 — extraction (`att/extract.py`)
 - [x] Stage 2 — configs + network model (`att/network.py`)
 - [x] Stage 3 — simulator, planner interface, baselines
-- [ ] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
+- [x] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
 - [ ] Stage 5 — tools, MCP server, tool client, stdio demo
 - [ ] Stage 6 — agents + event handling, agent tuning on dev workflows
 - [ ] Stage 7 — decision log, replay, experiment runner (180 runs)
@@ -31,10 +31,36 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 6 | 3 | `avg_gbps` is NaN when a run doesn't complete (same as `completion_s`). Ties at one instant are processed in a fixed order: last bytes sent → arrivals → task finishes → planned starts → scenario events → timeouts. | Keeps metrics well defined and the run deterministic. | `att/simulator.py::_process_instant`. |
 | 7 | 3 | Added `att/config.py` (YAML loading) and `att/runner.py` (`build_sim`, `run_one`, `run_id`) to the layout. | One place builds a run, so experiments, tuning, tests and replay can't drift apart. | — |
 | 8 | 3 | **Float guard:** if a transfer's remaining bytes are too small to move the clock (`t + remaining/rate == t`), it is finished now. | Found while testing: a 1.7e-5-byte remainder at 10 GB/s gives a 1.6e-15 s step, which is below float resolution at t = 51 s, so the loop never advanced. | `att/simulator.py::_loop`. |
+| 9 | 4 | Added an optional per-link byte counter (`Simulator.count_window`) used only by `tune.py` for step (a). | Step (a) needs "the link that carries the most baseline bytes during the event window"; measuring it inside the simulator is exact. It is off (None) in every experiment run. | `scripts/tune.py::busiest_link_in_window`. |
 
 ## Tuning table
 
-(Filled in at Stage 4.)
+Baseline only, tuning seeds 100–104, means over the 5 seeds. Source: `results/tuning/tuning.json` (from `python scripts/tune.py --write`).
+
+**Step 1: data_scale sweep in `normal`** (cell = mean completion / D, mean late as % of transfers; rule: completion ≤ 1.0 D and late ≤ 1%):
+
+| Workflow | ×10 | ×20 | ×50 | ×100 | ×200 | ×300 | ×500 | ×1000 | chosen |
+|---|---|---|---|---|---|---|---|---|---|
+| 1000genome-2ch | 0.681 / 0.0% | 0.696 / 0.0% | 0.740 / 0.0% | 0.813 / 0.0% | 0.956 / 0.0% | 1.092 / 28.4% | 1.385 / 47.8% | 2.090 / 47.8% | **200** |
+| montage-005d | 0.678 / 0.0% | 0.679 / 0.0% | 0.682 / 0.0% | 0.688 / 0.0% | 0.704 / 0.0% | 0.723 / 0.0% | 0.779 / 0.0% | 0.962 / 1.0% | **1000** |
+| 1000genome-8ch | 0.694 / 0.0% | 0.722 / 0.0% | 0.819 / 0.0% | 0.973 / 0.3% | 1.289 / 33.1% | 1.602 / 55.4% | 2.233 / 73.8% | 3.797 / 79.6% | **100** |
+| montage-01d | 0.679 / 0.0% | 0.680 / 0.0% | 0.685 / 0.0% | 0.700 / 0.0% | 0.773 / 0.0% | 0.859 / 0.0% | 1.017 / 3.5% | 1.453 / 54.8% | **300** |
+
+**Step 2: stress check** (stressed = completion ≥ 1.10 × normal, or late + failed transfers > 0):
+
+| Workflow | scale | normal (×D) | scenario | step | event | completion / D | late | failed transfers | stressed? |
+|---|---|---|---|---|---|---|---|---|---|
+| 1000genome-2ch | 200 | 0.956 | congestion | as configured | surge StarLight–ORNL +0.7 | 1.195 | 9.6 | 0.0 | yes |
+| 1000genome-2ch | 200 | 0.956 | link_failure | as configured | down StarLight–Caltech | 1.678 | 21.0 | 7.4 | yes |
+| montage-005d | 1000 | 0.962 | congestion | as configured | surge StarLight–ORNL +0.7 | 0.962 | 1.4 | 0.0 | yes |
+| montage-005d | 1000 | 0.962 | link_failure | as configured | down StarLight–Caltech | 1.192 | 61.8 | 17.2 | yes |
+| 1000genome-8ch | 100 | 0.973 | congestion | as configured | surge StarLight–ORNL +0.7 | 1.179 | 26.8 | 0.0 | yes |
+| 1000genome-8ch | 100 | 0.973 | link_failure | as configured | down StarLight–Caltech | 1.711 | 95.4 | 33.8 | yes |
+| montage-01d | 300 | 0.859 | congestion | as configured | surge StarLight–ORNL +0.7 | 0.859 | 0.0 | 0.0 | no |
+| montage-01d | 300 | 0.859 | congestion | (a) moved to busiest link | surge StarLight–FNAL +0.7 | 0.859 | 0.0 | 0.0 | no |
+| montage-01d | 300 | 0.859 | congestion | (b) extra_load 1.0 (load cap) | surge StarLight–FNAL +1.0 | 0.859 | 0.0 | 0.0 | no |
+| montage-01d | 300 | 0.859 | congestion | (c) kept as configured; reported as a finding | — | — | — | — | no |
+| montage-01d | 300 | 0.859 | link_failure | as configured | down StarLight–Caltech | 1.092 | 79.0 | 39.8 | yes |
 
 ---
 
@@ -160,4 +186,37 @@ These are close to the prototype numbers in CLAUDE.md (≈0.99 / 1.19 / 1.71 D f
 **How to verify**
 ```bash
 pytest -q tests/test_simulator.py tests/test_planner.py
+```
+
+### 2026-10-29 — Stage 4: tuning (baseline only) and freezing `configs/experiment.yaml`
+
+**Built**
+- `scripts/tune.py`: applies the CLAUDE.md section 14 rule using only `baseline` and tuning
+  seeds 100–104; writes `results/tuning/tuning.json`; `--write` freezes `data_scale` (and any
+  scenario overrides) into `configs/experiment.yaml`, keeping the file's comments.
+- `tests/test_config.py`: the frozen config equals what tuning chose; tuning and evaluation
+  seeds don't overlap.
+
+**Result** (full table under "Tuning table" above)
+- `data_scale`: 1000genome-2ch **200**, montage-005d **1000**, 1000genome-8ch **100**, montage-01d **300**
+  (the prototype guessed ~100 for 8ch and ~200 for Montage 0.1°; the rule picked 100 and 300 here).
+- 1000Genome (both): both stress scenarios stress the baseline clearly (8ch: 0.973 D normal →
+  1.179 D congestion, 1.711 D link_failure).
+- montage-01d / `link_failure`: stressed (0.859 → 1.092 D, 79 late, 40 failed transfers).
+- **montage-01d / `congestion`: not stressed, even after (a) moving the surge to the busiest link
+  in its window (StarLight–FNAL) and (b) raising it to the load cap. Kept as configured (step c)
+  and reported as a finding.** Why (checked by hand, seed 100): Montage moves ~9 GB at the very
+  start and then almost nothing until ~0.5 D; ~124 GB becomes ready in 0.5–0.6 D, *after* the surge
+  window (0.05–0.5 D) ends. A surge on StarLight–FNAL at the cap does delay 118 transfers by up
+  to 0.4 s, but none of them is near its deadline (min slack 3.7 s), so completion barely moves.
+  The rule does not allow moving the event in time, so I didn't.
+- montage-005d (dev only) / `congestion`: passes the rule only formally — its *normal* run already
+  has 1.4 late transfers on average, so "late + failed > 0" is true without any stress
+  (completion 0.962 D in both). In practice congestion doesn't stress it either. It is only used
+  for tuning agent parameters, not for results.
+
+**How to verify**
+```bash
+python scripts/tune.py     # ~5 s; same numbers; doesn't touch experiment.yaml without --write
+pytest -q tests/test_config.py
 ```

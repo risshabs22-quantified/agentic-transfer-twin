@@ -121,6 +121,9 @@ class Simulator:
         self.rejections = 0
         self.planner: Planner | None = None
         self.stop_time = self.max_time
+        # Optional measurement used only by Stage 4 tuning: bytes carried per link in [t0, t1].
+        self.count_window: tuple[float, float] | None = None
+        self.window_bytes = [0.0] * n_links
 
         self.req: dict[str, dict[str, Any]] = {tr["id"]: dict(tr) for tr in workflow["transfers"]}
         self.transfers: list[_Transfer] = []
@@ -397,6 +400,8 @@ class Simulator:
             if not active and not self.heap:
                 break  # nothing can ever happen again (should not occur with valid inputs)
             step = nxt - self.t
+            if self.count_window is not None:
+                self._count_bytes(active, self.t, nxt)
             for x in active:
                 if x.rate > 0:
                     x.remaining -= x.rate * step
@@ -408,6 +413,16 @@ class Simulator:
                 self._process_instant()
                 break
         return self.metrics()
+
+    def _count_bytes(self, active: list[_Transfer], t0: float, t1: float) -> None:
+        """Add the bytes each link carries during the overlap of [t0, t1] with count_window."""
+        w0, w1 = self.count_window
+        overlap = min(t1, w1) - max(t0, w0)
+        if overlap <= 0:
+            return
+        for x in active:
+            for i in x.links:
+                self.window_bytes[i] += x.rate * overlap
 
     def _advance_cell(self) -> None:
         if self._load is None:
@@ -476,6 +491,7 @@ class Simulator:
         c.counter, c.event_seq = self.counter, self.event_seq
         c.reroutes, c.decisions, c.rejections = 0, [], 0
         c.planner, c.stop_time = None, self.max_time
+        c.count_window, c.window_bytes = None, [0.0] * len(self.down)
         c.req = self.req
         c.transfers = [x.copy() for x in self.transfers]
         c.by_id = {x.id: x for x in c.transfers}

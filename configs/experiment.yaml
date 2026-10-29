@@ -12,10 +12,10 @@ simulator:
 
 # data_scale multiplies every file size (SYNTHETIC). Chosen by scripts/tune.py in Stage 4.
 workflows:
-  1000genome-2ch: {file: data/raw/1000genome-chameleon-2ch-100k-001.json, role: dev,    data_scale: null}
-  montage-005d:   {file: data/raw/montage-chameleon-2mass-005d-001.json,  role: dev,    data_scale: null}
-  1000genome-8ch: {file: data/raw/1000genome-chameleon-8ch-100k-001.json, role: result, data_scale: null}
-  montage-01d:    {file: data/raw/montage-chameleon-2mass-01d-001.json,   role: result, data_scale: null}
+  1000genome-2ch: {file: data/raw/1000genome-chameleon-2ch-100k-001.json, role: dev,    data_scale: 200}
+  montage-005d:   {file: data/raw/montage-chameleon-2mass-005d-001.json,  role: dev,    data_scale: 1000}
+  1000genome-8ch: {file: data/raw/1000genome-chameleon-8ch-100k-001.json, role: result, data_scale: 100}
+  montage-01d:    {file: data/raw/montage-chameleon-2mass-01d-001.json,   role: result, data_scale: 300}
 
 scenarios: [normal, congestion, link_failure]
 planners: [baseline, baseline_reroute, agents]
