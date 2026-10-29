@@ -1,0 +1,8 @@
+# Only tool configuration lives here; dependencies are in requirements.txt.
+[tool.pytest.ini_options]
+# Let tests import the `att` package from the repo root without installing it.
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "slow: tests that run many simulations (still well under a minute)",
+]
