@@ -12,7 +12,7 @@ Every entry says what was built, why, and the commands to verify it.
 - [x] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
 - [x] Stage 5 — tools, MCP server, tool client, stdio demo
 - [x] Stage 6 — agents + event handling, agent tuning on dev workflows
-- [ ] Stage 7 — decision log, replay, experiment runner (180 runs)
+- [x] Stage 7 — decision log, replay, experiment runner (180 runs)
 - [ ] Stage 8 — tables, plots, README, write-up
 - [ ] Stage 9 — `docs/HOW_IT_WORKS.md`
 - [ ] Stage 10 — fresh-clone reproduction check
@@ -39,6 +39,8 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 14 | 6 | **Event handling details:** every event also refreshes priorities (slack changes over time); `link_up`/`surge_end` consider moving back *any* unfinished transfer that could use the restored link (not only not-yet-started ones), because rerouting keeps bytes already sent (Deviation 3); a transfer is moved only if its projected load drops by `move_margin` (tuned: 10%) or its route is down; and the whole change is kept only if a `simulate_plan` forecast says it is no worse than keeping the current plan. | Avoids churn from tiny projected gains, and the forecast gate stops changes that look good locally but hurt overall. | `att/agents/coordinator.py::_react`. |
 | 15 | 6 | Agent parameters tuned: `priority_fraction` ∈ {0.1, 0.2, 0.3, 0.5}, `move_margin` ∈ {0, 0.1, 0.25}, `draft_margin` ∈ {0, 0.05, 0.1}, on the 2 dev workflows × 3 scenarios × tuning seeds 100–104 (36 configs). `busy_threshold` (0.3) and `k_paths` (3) kept as specified. | CLAUDE.md allows tuning agent parameters on dev workflows only; the grid is small and fully logged. | `python scripts/tune_agents.py`. |
 | 16 | 6 | The tool client tags every recorded call with the calling agent (`workflow_agent` / `network_agent` / `coordinator`). | The decision log then shows which agent asked what. | `tests/test_agents.py`. |
+| 17 | 7 | Manifests store a **self-contained `settings` dict** (workflow file + sha256, sites, slack, data_scale, the scenario's events, background parameters, the full topology, simulator settings, planner + parameters), and replay rebuilds the simulator from it (`att/runner.py::sim_from_settings`) rather than from the current YAML files. Experiments use the same function, so there is one code path. | A replay can't silently pick up a later config edit; a changed data file is detected by its hash. | `tests/test_replay.py`. |
+| 18 | 7 | `summary.csv` is rebuilt from the manifests of every run in the configured grid, in grid order. Logs are gzip files with a fixed header (mtime 0, no file name). Added `att/experiment.py` (run + record one run). | Running a subset refreshes only those runs and still produces the same full table; identical runs give byte-identical logs. | `test_log_and_manifest_are_byte_identical_when_rerun`. |
 
 ## Tuning table
 
@@ -303,4 +305,35 @@ under link failure (everyone piles onto the one backup route — the effect CLAU
 ```bash
 python scripts/tune_agents.py     # ~70 s, same choice
 pytest -q tests/test_agents.py
+```
+
+### 2026-10-29 — Stage 7: decision log, replay, experiments (180 runs)
+
+**Built**
+- `att/decision_log.py`: `results/logs/<run_id>.jsonl.gz`, one line per decision with
+  `run_id, seq, t, agent, trigger, saw, tool_calls, decision, rejected, reason`. Every planner is
+  logged, the baselines included; "no change" answers are logged too (Deviation 5).
+- `att/replay.py`: `ReplayPlanner` (returns logged decisions in order, checks each incoming event's
+  type/seq/t/link/transfer against the log, raises `ReplayMismatch` otherwise) and `replay_run`.
+- `att/experiment.py` + `scripts/run_experiments.py`: 2 result workflows × 3 scenarios × seeds 0–9
+  × 3 planners = 180 runs; manifest per run (settings, metrics, git commit, package versions).
+  Filters `--workflows/--scenarios/--seeds/--planners` run a subset.
+- `scripts/replay.py --run <id> | --all`: rebuilds from the manifest, replays from the log,
+  compares metrics (ints/bools exact, floats 1e-9 relative), prints `REPLAY OK <id>`, exits non-zero
+  on any mismatch.
+- `tests/test_replay.py`: exact replay of a baseline and an agents run on a dev workflow;
+  re-running gives byte-identical logs; a tampered log is caught; an extra event is caught.
+
+**Result**
+- `python scripts/run_experiments.py`: 180 runs in ~14 s, `results/summary.csv` has 180 rows,
+  every run completed. Code was committed first so manifests record a clean commit.
+- `python scripts/replay.py --all`: **180/180 runs replayed exactly**.
+- Note: the agent parameters and `experiment.yaml` were frozen (Stage 6 commit) before any
+  evaluation-seed run; nothing has been tuned since.
+
+**How to verify**
+```bash
+python scripts/run_experiments.py
+python scripts/replay.py --all
+pytest -q tests/test_replay.py
 ```

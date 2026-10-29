@@ -1,0 +1,125 @@
+{
+ "run_id": "montage-01d__normal__seed6__agents",
+ "settings": {
+  "workflow": "montage-01d",
+  "workflow_file": "data/raw/montage-chameleon-2mass-01d-001.json",
+  "workflow_sha256": "7f615b37a39ea359a7b33eb80dd26a0e89764343b2ed8e18109a4e6fe871c977",
+  "scenario": "normal",
+  "seed": 6,
+  "planner": "agents",
+  "mode": "rule",
+  "planner_params": {
+   "priority_fraction": 0.3,
+   "move_margin": 0.1,
+   "draft_margin": 0.05,
+   "busy_threshold": 0.3,
+   "k_paths": 3
+  },
+  "sites": [
+   "Caltech",
+   "UCSD",
+   "FNAL",
+   "ORNL"
+  ],
+  "source_site": "CERN",
+  "slack": 1.5,
+  "data_scale": 300,
+  "simulator": {
+   "steps_per_deadline": 1000,
+   "max_time_frac": 20,
+   "timeout_frac": 0.1
+  },
+  "background": {
+   "mean": 0.2,
+   "wave": 0.1,
+   "period_frac": 0.5,
+   "noise": 0.05,
+   "interval_frac": 0.005
+  },
+  "events": [],
+  "topology": {
+   "sites": [
+    "CERN",
+    "StarLight",
+    "FNAL",
+    "Caltech",
+    "UCSD",
+    "ORNL"
+   ],
+   "links": [
+    {
+     "a": "CERN",
+     "b": "StarLight",
+     "gbps": 400.0,
+     "ms": 90.0
+    },
+    {
+     "a": "StarLight",
+     "b": "FNAL",
+     "gbps": 400.0,
+     "ms": 2.0
+    },
+    {
+     "a": "StarLight",
+     "b": "Caltech",
+     "gbps": 100.0,
+     "ms": 50.0
+    },
+    {
+     "a": "StarLight",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "FNAL",
+     "b": "ORNL",
+     "gbps": 100.0,
+     "ms": 15.0
+    },
+    {
+     "a": "Caltech",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 5.0
+    },
+    {
+     "a": "FNAL",
+     "b": "UCSD",
+     "gbps": 100.0,
+     "ms": 55.0
+    }
+   ]
+  }
+ },
+ "metrics": {
+  "completed": true,
+  "completion_s": 25.699086131000037,
+  "failed_attempts": 0,
+  "failed_transfers": 0,
+  "late": 0,
+  "n_transfers": 230,
+  "gb_moved": 192.3917535,
+  "avg_gbps": 59.890613236374534,
+  "data_wait_s": 103.55357392101146,
+  "reroutes": 0,
+  "decisions": 1,
+  "end_s": 25.699086131000037,
+  "deadline_D_s": 31.683,
+  "tasks_done": 103,
+  "transfers_arrived": 230,
+  "rejected_entries": 0
+ },
+ "log": "results/logs/montage-01d__normal__seed6__agents.jsonl.gz",
+ "git_commit": "17c0bf6eed651b150e0d64c5dab20d84890679a9",
+ "versions": {
+  "python": "3.12.14",
+  "networkx": "3.7",
+  "numpy": "2.5.4",
+  "pandas": "3.1.0",
+  "matplotlib": "3.11.2",
+  "PyYAML": "6.0.3",
+  "mcp": "2.3.0",
+  "pytest": "9.2.0"
+ }
+}
