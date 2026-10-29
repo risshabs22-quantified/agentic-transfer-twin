@@ -32,6 +32,19 @@ def build_sim(exp: dict[str, Any], workflow: str, scenario: str, seed: int,
                      max_time_frac=s["max_time_frac"], timeout_frac=s["timeout_frac"])
 
 
+def make_planner(name: str, exp: dict[str, Any]) -> Planner:
+    """Build a planner by name, with its frozen parameters from experiment.yaml."""
+    from att.agents import AgentTeam
+    from att.baseline import Baseline, BaselineReroute
+    if name == "baseline":
+        return Baseline()
+    if name == "baseline_reroute":
+        return BaselineReroute()
+    if name == "agents":
+        return AgentTeam(**exp["agents"])
+    raise ValueError(f"unknown planner {name!r}")
+
+
 def run_one(exp: dict[str, Any], workflow: str, scenario: str, seed: int, planner: Planner,
             data_scale: float | None = None) -> tuple[dict[str, Any], Simulator]:
     sim = build_sim(exp, workflow, scenario, seed, data_scale)

@@ -23,3 +23,12 @@ planners: [baseline, baseline_reroute, agents]
 seeds:
   tuning: [100, 101, 102, 103, 104]
   evaluation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# Agent parameters, chosen by scripts/tune_agents.py on the DEV workflows with the TUNING seeds
+# (results/tuning/agent_tuning.json). FROZEN before the final runs.
+agents:
+  priority_fraction: 0.3   # the most urgent 30% of transfers get priority 2
+  move_margin: 0.1         # on an event, reroute a transfer only if projected >= 10% faster
+  draft_margin: 0.05       # leave the lowest-delay plan only if another draft is forecast >= 5% faster
+  busy_threshold: 0.3      # a link is flagged "busy" when free capacity < 30% of capacity
+  k_paths: 3               # route options considered per transfer

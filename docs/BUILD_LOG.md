@@ -11,7 +11,7 @@ Every entry says what was built, why, and the commands to verify it.
 - [x] Stage 3 — simulator, planner interface, baselines
 - [x] Stage 4 — tuning (baseline only) + freeze `configs/experiment.yaml`
 - [x] Stage 5 — tools, MCP server, tool client, stdio demo
-- [ ] Stage 6 — agents + event handling, agent tuning on dev workflows
+- [x] Stage 6 — agents + event handling, agent tuning on dev workflows
 - [ ] Stage 7 — decision log, replay, experiment runner (180 runs)
 - [ ] Stage 8 — tables, plots, README, write-up
 - [ ] Stage 9 — `docs/HOW_IT_WORKS.md`
@@ -35,6 +35,10 @@ Changes from `CLAUDE.md`, with why each one is better and how to check it.
 | 10 | 5 | Tools additions: batch tools `get_paths_many` and `estimate_many` (CLAUDE.md allows these); `get_paths(..., avoid_down=False)` option; `get_workflow_requirements` adds `data_ready_s` (best present estimate of when a transfer's data exists, from task status and trace runtimes); "never"/"unknown" are returned as `null` because MCP output must be valid JSON (NaN/inf are not). | Fewer round trips per decision; agents need readiness to compute slack; the SDK rejects NaN in structured output (verified). | `tests/test_tools.py`. |
 | 11 | 5 | The module-level demo server `att.mcp_server.mcp` is built lazily (module `__getattr__`) rather than at import time. | Importing `build_server` in every experiment run would otherwise build a throwaway demo twin each time. `python -m att.mcp_server` and `getattr(module, "mcp")` (what `mcp dev` uses) still work. | `python scripts/mcp_demo_client.py`. |
 | 12 | 5 | `Simulator.run` split into `start(planner)` (t = 0 setup + initial plan) and the main loop. | The demo server and tests need a twin "at t = 0 with a plan in place" without running it. | `tests/test_tools.py`. |
+| 13 | 6 | **Coordinator forecasts three drafts, not two**: load-balanced, the network agent's fastest-route draft, *and* the simple lowest-delay draft. It keeps the best forecast, but leaves the lowest-delay draft only if another is forecast at least `draft_margin` (tuned: 5%) faster. | On dev Montage (tuning seeds) the two specified drafts were both *worse* than the baseline in `normal` (1.010 D and 1.158 D vs 0.962 D): time-blind balancing pushes small files onto 3-hop routes, and "everyone takes the fastest route" herds them onto one link. Persistence forecasts are only accurate to a few %, so a small forecast gain is noise; the margin is a principled hysteresis. With it: 0.966 D. | `results/tuning/agent_tuning.json`; `AgentTeam(drafts=...)` reproduces each variant. |
+| 14 | 6 | **Event handling details:** every event also refreshes priorities (slack changes over time); `link_up`/`surge_end` consider moving back *any* unfinished transfer that could use the restored link (not only not-yet-started ones), because rerouting keeps bytes already sent (Deviation 3); a transfer is moved only if its projected load drops by `move_margin` (tuned: 10%) or its route is down; and the whole change is kept only if a `simulate_plan` forecast says it is no worse than keeping the current plan. | Avoids churn from tiny projected gains, and the forecast gate stops changes that look good locally but hurt overall. | `att/agents/coordinator.py::_react`. |
+| 15 | 6 | Agent parameters tuned: `priority_fraction` ∈ {0.1, 0.2, 0.3, 0.5}, `move_margin` ∈ {0, 0.1, 0.25}, `draft_margin` ∈ {0, 0.05, 0.1}, on the 2 dev workflows × 3 scenarios × tuning seeds 100–104 (36 configs). `busy_threshold` (0.3) and `k_paths` (3) kept as specified. | CLAUDE.md allows tuning agent parameters on dev workflows only; the grid is small and fully logged. | `python scripts/tune_agents.py`. |
+| 16 | 6 | The tool client tags every recorded call with the calling agent (`workflow_agent` / `network_agent` / `coordinator`). | The decision log then shows which agent asked what. | `tests/test_agents.py`. |
 
 ## Tuning table
 
@@ -252,4 +256,51 @@ pytest -q tests/test_config.py
 python scripts/mcp_demo_client.py
 pytest -q tests/test_tools.py
 npx @modelcontextprotocol/inspector python -m att.mcp_server    # optional, needs Node.js
+```
+
+### 2026-10-29 — Stage 6: agents and event handling; agent tuning on dev workflows
+
+**Built**
+- `att/agents/workflow_agent.py` (SciNet 2.2.1): earliest arrival = data-ready estimate +
+  `estimate_transfer_time` on the lowest-delay route that is up; slack = deadline − earliest
+  arrival; lowest-slack `priority_fraction` of unfinished transfers get priority 2, each with a
+  one-line reason.
+- `att/agents/network_agent.py` (SciNet 2.2.2/2.2.3): top-3 routes per transfer (none down),
+  estimate on each, recommends the fastest, flags busy links (< 30% free).
+- `att/agents/coordinator.py` (SciNet 2.2.6): `AgentTeam`, the team's `Planner`
+  (name `agents`, mode `rule`). Initial plan by projected bottleneck load, three drafts compared
+  by forecast (Deviation 13), `submit_plan`; targeted event handling (Deviation 14).
+  Everything goes through MCP: each `plan()`/`on_event()` opens one in-process MCP session.
+- `att/runner.py::make_planner` builds any planner from the frozen config.
+- `scripts/tune_agents.py` → `results/tuning/agent_tuning.json`; chosen values frozen in
+  `configs/experiment.yaml` under `agents:`.
+- `tests/test_agents.py`: agents complete every scenario on both dev workflows with 0 rejected
+  entries and use all three agents' tools; **structural no-peeking** (AST check: `att/agents/*`
+  and `att/baseline.py` never import the simulator, network model, configs, runner, extractor or
+  yaml, and agents never read `view.<anything>` — they only pass it to `build_server`); frozen
+  params equal the tuning output; cross-process determinism of an agents run, including every
+  tool call and reason.
+
+**Tuning result** (dev workflows, tuning seeds; mean completion / D):
+chosen `priority_fraction=0.3, move_margin=0.1, draft_margin=0.05` → 0.9136 D on average
+(worst config in the grid: 0.9483 D).
+
+| dev workflow / scenario | baseline | baseline_reroute | agents (chosen) |
+|---|---|---|---|
+| 1000genome-2ch / normal | 0.956 | 0.956 | 0.823 |
+| 1000genome-2ch / congestion | 1.195 | 1.195 | 0.824 |
+| 1000genome-2ch / link_failure | 1.678 | 0.965 | 0.826 |
+| montage-005d / normal | 0.962 | 0.962 | 0.966 |
+| montage-005d / congestion | 0.962 | 0.962 | 0.977 |
+| montage-005d / link_failure | 1.192 | 1.266 | 1.064 |
+
+Already visible on dev data (to be checked, not assumed, on the result workflows): on 1000Genome
+the agents' load balancing helps even in `normal`; on Montage the agents are slightly *worse*
+than the baseline when nothing goes wrong, and `baseline_reroute` is worse than doing nothing
+under link failure (everyone piles onto the one backup route — the effect CLAUDE.md predicted).
+
+**How to verify**
+```bash
+python scripts/tune_agents.py     # ~70 s, same choice
+pytest -q tests/test_agents.py
 ```

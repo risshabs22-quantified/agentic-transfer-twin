@@ -69,6 +69,7 @@ class ToolClient:
     def __init__(self, client: Client):
         self._client = client
         self.calls: list[dict[str, Any]] = []
+        self.agent: str | None = None  # which agent is calling; recorded with each call
 
     async def call(self, tool: str, **args: Any) -> Any:
         res = await self._client.call_tool(tool, args)
@@ -78,7 +79,10 @@ class ToolClient:
         sc = res.structured_content
         # Tools that return a list come back wrapped as {"result": [...]}; dicts come back as-is.
         result = sc["result"] if isinstance(sc, dict) and set(sc) == {"result"} else sc
-        self.calls.append({"tool": tool, "args": summarize_args(args), "result": summarize_result(tool, result)})
+        rec = {"tool": tool, "args": summarize_args(args), "result": summarize_result(tool, result)}
+        if self.agent:
+            rec = {"agent": self.agent, **rec}
+        self.calls.append(rec)
         return result
 
 
