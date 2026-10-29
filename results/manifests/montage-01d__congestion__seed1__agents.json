@@ -122,7 +122,7 @@
   "rejected_entries": 0
  },
  "log": "results/logs/montage-01d__congestion__seed1__agents.jsonl.gz",
- "git_commit": "17c0bf6eed651b150e0d64c5dab20d84890679a9",
+ "git_commit": "fe0d4a64a37f87d6f627c0dc70ae38395518504a",
  "versions": {
   "python": "3.12.14",
   "networkx": "3.7",

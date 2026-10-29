@@ -99,7 +99,7 @@
  "metrics": {
   "completed": true,
   "completion_s": 1015.8560141545213,
-  "failed_attempts": 165,
+  "failed_attempts": 147,
   "failed_transfers": 33,
   "late": 84,
   "n_transfers": 175,
@@ -107,7 +107,7 @@
   "avg_gbps": 30.694154899059445,
   "data_wait_s": 27705.003549196692,
   "reroutes": 0,
-  "decisions": 168,
+  "decisions": 150,
   "end_s": 1015.8560141545213,
   "deadline_D_s": 601.916,
   "tasks_done": 208,
@@ -115,7 +115,7 @@
   "rejected_entries": 0
  },
  "log": "results/logs/1000genome-8ch__link_failure__seed1__baseline.jsonl.gz",
- "git_commit": "17c0bf6eed651b150e0d64c5dab20d84890679a9",
+ "git_commit": "fe0d4a64a37f87d6f627c0dc70ae38395518504a",
  "versions": {
   "python": "3.12.14",
   "networkx": "3.7",

@@ -122,7 +122,7 @@
   "rejected_entries": 0
  },
  "log": "ablation/logs/montage-01d__congestion__seed0__agents_static.jsonl.gz",
- "git_commit": "ac9d65c3f245f3e8f680987ee4073c6ddfa54acd-dirty",
+ "git_commit": "fe0d4a64a37f87d6f627c0dc70ae38395518504a",
  "versions": {
   "python": "3.12.14",
   "networkx": "3.7",
