@@ -255,12 +255,36 @@ link. That is a dependency chain, and it's why a single outage can delay so much
 - **`tune_agents.py`.** Stage 6: a grid over agent parameters on the dev workflows with tuning seeds.
 - **`run_experiments.py`.** The 180 runs, then `summary.csv`.
 - **`run_ablation.py`.** The supplementary `agents_static` runs.
+- **`run_competing.py`.** Both result workflows sharing the network at once (supplementary).
+- **`run_maxmin.py`.** All 180 runs again under max-min fair sharing (supplementary robustness check).
+- **`run_llm.py`.** Optional LLM mode. It costs money and needs `ANTHROPIC_API_KEY` in the
+  environment or a gitignored `.env`. Already-recorded runs are skipped, and
+  `python scripts/replay.py --llm` replays them with no API calls.
+- **`check_summary.py`.** Compares two `summary.csv` files using the replay tolerance (used by CI).
 - **`replay.py`.** `--run <id>` or `--all`.
 - **`make_tables.py`.** Writes `table.md`, `key_findings.md` and `headline.md`, and syncs the README
   and write-up blocks.
 - **`make_plots.py`.** The two PNGs.
 - **`mcp_demo_client.py`.** Calls every tool over stdio from a separate process.
 - **`trace_transfer.py`.** The "life of one transfer" story for any run and transfer.
+
+### Connecting Claude Desktop to the MCP server
+
+Add this to Claude Desktop's `claude_desktop_config.json` (on macOS in
+`~/Library/Application Support/Claude/`), using this folder's absolute path, then restart Claude
+Desktop:
+
+```json
+{
+  "mcpServers": {
+    "transfer-twin": {
+      "command": "/path/to/agentic-transfer-twin/.venv/bin/python",
+      "args": ["-m", "att.mcp_server"],
+      "cwd": "/path/to/agentic-transfer-twin"
+    }
+  }
+}
+```
 
 ### `tests/`
 
@@ -575,9 +599,10 @@ python scripts/run_experiments.py --workflows montage-01d --scenarios link_failu
     - an LLM coordinator that calls the MCP tools itself, on more seeds;
     - a real topology if available.
 
-28. **What part did Claude Code do?**
-    I designed and directed it and decided what to test; Claude Code implemented it as a coding
-    assistant. I can explain every part, and the build log records every decision and deviation.
+28. **What part did the AI coding assistant do?**
+    I designed and directed the project, decided what to test, and checked the results. An AI coding
+    assistant (Claude Code) wrote the code under my direction. Every decision and deviation is
+    recorded in the build log, and I can explain every part.
 
 ---
 

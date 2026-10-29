@@ -477,3 +477,15 @@ cmp results/summary.csv <(git show HEAD:results/summary.csv) && echo identical
   (CERN → UCSD). Saved as `docs/inspector.png`, cropped to the Inspector window only (browser tabs,
   bookmarks and the Inspector session token in the URL removed), and placed in the README's MCP
   section in place of the placeholder.
+
+### 2026-10-29 — Shorter README; credit line reworded
+
+- At Risshab's request the README was cut to the essentials: summary, links, real vs. synthetic,
+  run commands, a compact results table, both plots, key findings (collapsible), the MCP server
+  and credits. Optional extras (ablation, competing workflows, max-min, LLM mode, Claude Desktop
+  config) are documented in `docs/HOW_IT_WORKS.md` and this log.
+- New generated file `results/table_short.md` (one row per workflow × scenario: mean completion × D
+  and late transfers per planner) fills the README's RESULTS block; the write-up keeps the full
+  `results/table.md`. `tests/test_docs_consistency.py` checks both.
+- Credit line now reads: "Designed, directed and verified by Risshab Shankar. Code written with an
+  AI coding assistant (Claude Code) under my direction."

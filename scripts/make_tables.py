@@ -26,6 +26,8 @@ NICE = {"1000genome-8ch": "1000Genome 8ch", "montage-01d": "Montage 0.1°",
         "normal": "normal", "congestion": "congestion", "link_failure": "link failure"}
 BLOCKS = {"SUMMARY": RESULTS / "headline.md", "RESULTS": RESULTS / "table.md",
           "FINDINGS": RESULTS / "key_findings.md"}
+# The README shows a compact table; the write-up shows the full one.
+README_BLOCKS = {**BLOCKS, "RESULTS": RESULTS / "table_short.md"}
 DOCS = [config.ROOT / "README.md", config.ROOT / "docs" / "writeup.md"]
 
 
@@ -307,6 +309,18 @@ def dev_comparison() -> dict[tuple[str, str], tuple[float, float]]:
     return out
 
 
+def make_short_table(df: pd.DataFrame) -> str:
+    """One row per workflow x scenario: mean completion (x D) and late transfers per planner."""
+    L = ["Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). "
+         "Full tables: [`results/table.md`](results/table.md).", "",
+         "| Workflow | Scenario | baseline | baseline_reroute | agents |", "|---|---|---|---|---|"]
+    for w in dict.fromkeys(df.workflow):
+        for s in SCEN_ORDER:
+            L.append(f"| {NICE[w]} | {NICE[s]} | " + " | ".join(
+                f"{m(df, w, s, p):.2f} ({m(df, w, s, p, 'late'):.1f})" for p in PLANNERS) + " |")
+    return "\n".join(L) + "\n"
+
+
 def make_headline(df: pd.DataFrame) -> str:
     """The main result in one sentence (used as the write-up's summary and the README's lead)."""
     G, M = "1000genome-8ch", "montage-01d"
@@ -333,7 +347,8 @@ def sync_docs() -> list[str]:
             continue
         text = doc.read_text()
         new = text
-        for tag, src in BLOCKS.items():
+        blocks = README_BLOCKS if doc.name == "README.md" else BLOCKS
+        for tag, src in blocks.items():
             start, end = f"<!-- {tag}:START -->", f"<!-- {tag}:END -->"
             if start in new and end in new:
                 head, rest = new.split(start, 1)
@@ -355,6 +370,7 @@ def main() -> None:
     (RESULTS / "table.md").write_text(make_table(df, abl))
     (RESULTS / "key_findings.md").write_text(make_findings(df, abl))
     (RESULTS / "headline.md").write_text(make_headline(df))
+    (RESULTS / "table_short.md").write_text(make_short_table(df))
     print("wrote results/table.md, results/key_findings.md, results/headline.md")
     for d in sync_docs():
         print(f"updated blocks in {d}")

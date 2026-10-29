@@ -16,7 +16,8 @@ def block(text: str, tag: str) -> str:
 @pytest.mark.parametrize("doc", DOCS, ids=lambda p: p.name)
 @pytest.mark.parametrize("tag", sorted(BLOCKS))
 def test_block_matches_generated_file(doc, tag):
-    generated = (ROOT / BLOCKS[tag]).read_text()
+    src = "results/table_short.md" if (doc.name == "README.md" and tag == "RESULTS") else BLOCKS[tag]
+    generated = (ROOT / src).read_text()
     assert block(doc.read_text(), tag) == generated, (
         f"{doc.name} {tag} block is stale; run: python scripts/make_tables.py")
 
