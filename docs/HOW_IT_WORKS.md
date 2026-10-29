@@ -174,7 +174,7 @@ link. That is a dependency chain, and it's why a single outage can delay so much
 - **What it holds.** `Simulator` (the run), `TwinView` (what planners see), `snapshot()` /
   `forecast()` (the persistence forecast behind `simulate_plan`).
 - **How time moves.** It is event-driven: it jumps to the next moment something changes. That's
-  exact and fast, about 0.1 s for a big run.
+  exact and fast: a whole run takes well under a second.
 - **Key methods.**
   - `_process_instant`: everything that happens at one time, in a fixed order
   - `_rates`: priority-weighted sharing of each link
