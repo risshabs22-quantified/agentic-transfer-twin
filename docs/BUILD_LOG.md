@@ -15,7 +15,18 @@ Every entry says what was built, why, and the commands to verify it.
 - [x] Stage 7 — decision log, replay, experiment runner (180 runs)
 - [x] Stage 8 — tables, plots, README, write-up
 - [ ] Stage 9 — `docs/HOW_IT_WORKS.md`
-- [ ] Stage 10 — fresh-clone reproduction check
+- [x] Stage 10 — fresh-clone reproduction check
+
+### Definition of done (CLAUDE.md section 19)
+
+- [x] Fresh clone + the README steps reproduce `results/summary.csv` exactly (byte-for-byte)
+- [x] `python scripts/replay.py --all` prints `REPLAY OK` for all 180 runs
+- [x] `pytest -q` passes (69 tests), including determinism, no-peeking and docs-consistency tests
+- [x] README, write-up and HOW_IT_WORKS complete; every number traces back to `results/`
+- [x] Everything synthetic is labeled; limitations are specific and honest
+- [x] Every deviation from CLAUDE.md is logged and explained (below)
+- [x] No secrets, no Caltech/ORNL material, nothing outside the repo touched
+- [x] Final commit pushed
 
 ## Deviations
 
@@ -374,4 +385,31 @@ congestion and 1.34 D under the link failure. Congestion does not stress Montage
 python scripts/run_ablation.py
 python scripts/make_tables.py && python scripts/make_plots.py
 pytest -q tests/test_docs_consistency.py
+```
+
+### 2026-10-29 — Stage 10: fresh-clone check
+
+**Done**
+- `git clone` of `origin/main` (commit `ffdc372`) into a temporary folder outside the repo, new
+  venv with Python 3.12.14, then exactly the README steps: `pip install -r requirements.txt`,
+  `python scripts/run_experiments.py`, `python scripts/replay.py --all`,
+  `python scripts/make_tables.py && python scripts/make_plots.py`, plus `pytest -q` and
+  `python scripts/run_ablation.py`.
+
+**Result**
+- `results/summary.csv` **byte-identical** to the committed one; `results/ablation/summary.csv`
+  identical too.
+- `REPLAY OK` for **180/180** runs (exit code 0).
+- `pytest -q`: 69 passed.
+- After regenerating, `git status` in the clone showed no changes to logs, tables, findings, plots,
+  README or write-up; the only difference was the `git_commit` field inside each manifest (the
+  clone was at a newer commit than the one that produced the committed results), as expected.
+- Secret scan of all tracked files: nothing found; no `.env` tracked; `.git` is 1.3 MB.
+
+**How to verify**
+```bash
+git clone https://github.com/risshabs22-quantified/agentic-transfer-twin.git /tmp/att-check && cd /tmp/att-check
+python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+python scripts/run_experiments.py && python scripts/replay.py --all
+cmp results/summary.csv <(git show HEAD:results/summary.csv) && echo identical
 ```
