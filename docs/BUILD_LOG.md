@@ -496,3 +496,14 @@ sentences, no dashes used as punctuation, and no internal milestone labels ("Sta
 sign-dependent wording. Dead code went too: `TwinView.timeout_s`, `Simulator.settings` and an
 unused import. Results are unchanged: `summary.csv` is identical, 180/180 main runs and 61/61 LLM
 runs replay exactly, and all 78 tests pass.
+
+### HOW_IT_WORKS as a complete reference (2026-10-30)
+
+`docs/HOW_IT_WORKS.md` was rebuilt as the full reference for the repository: the idea, the
+life cycle of one run, extraction (placement hash, critical-path deadlines, transfer rules), the
+network model (topology, the background-load formula, scenarios), the simulator (event loop,
+sharing, stalls and timeouts, validation, every metric, forecasts), each planner and agent with
+its exact rules and parameters, LLM mode, the tools with real example outputs, logs, manifests
+and replay, tuning and experiments, every output file, results, a table of limitations with what
+was done about each, tests, and how to extend the code. Its results, summary and findings are
+synced from `results/` like the README's, and `tests/test_docs_consistency.py` now checks it too.

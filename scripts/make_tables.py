@@ -26,9 +26,9 @@ NICE = {"1000genome-8ch": "1000Genome 8ch", "montage-01d": "Montage 0.1°",
         "normal": "normal", "congestion": "congestion", "link_failure": "link failure"}
 BLOCKS = {"SUMMARY": RESULTS / "headline.md", "RESULTS": RESULTS / "table.md",
           "FINDINGS": RESULTS / "key_findings.md"}
-# The README shows a compact table; the write-up shows the full one.
+# The README and HOW_IT_WORKS show a compact table; the write-up shows the full one.
 README_BLOCKS = {**BLOCKS, "RESULTS": RESULTS / "table_short.md"}
-DOCS = [config.ROOT / "README.md", config.ROOT / "docs" / "writeup.md"]
+DOCS = [config.ROOT / "README.md", config.ROOT / "docs" / "writeup.md", config.ROOT / "docs" / "HOW_IT_WORKS.md"]
 
 
 def load(path: Path = RESULTS / "summary.csv") -> pd.DataFrame:
@@ -344,7 +344,7 @@ def sync_docs() -> list[str]:
             continue
         text = doc.read_text()
         new = text
-        blocks = README_BLOCKS if doc.name == "README.md" else BLOCKS
+        blocks = BLOCKS if doc.name == "writeup.md" else README_BLOCKS  # only the write-up shows the full table
         for tag, src in blocks.items():
             start, end = f"<!-- {tag}:START -->", f"<!-- {tag}:END -->"
             if start in new and end in new:

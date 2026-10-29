@@ -3,7 +3,7 @@ import pytest
 
 from tests.helpers import ROOT
 
-DOCS = [ROOT / "README.md", ROOT / "docs" / "writeup.md"]
+DOCS = [ROOT / "README.md", ROOT / "docs" / "writeup.md", ROOT / "docs" / "HOW_IT_WORKS.md"]
 BLOCKS = {"SUMMARY": "results/headline.md", "RESULTS": "results/table.md", "FINDINGS": "results/key_findings.md"}
 
 
@@ -16,7 +16,7 @@ def block(text: str, tag: str) -> str:
 @pytest.mark.parametrize("doc", DOCS, ids=lambda p: p.name)
 @pytest.mark.parametrize("tag", sorted(BLOCKS))
 def test_block_matches_generated_file(doc, tag):
-    src = "results/table_short.md" if (doc.name == "README.md" and tag == "RESULTS") else BLOCKS[tag]
+    src = "results/table_short.md" if (doc.name != "writeup.md" and tag == "RESULTS") else BLOCKS[tag]
     generated = (ROOT / src).read_text()
     assert block(doc.read_text(), tag) == generated, (
         f"{doc.name} {tag} block is stale; run: python scripts/make_tables.py")

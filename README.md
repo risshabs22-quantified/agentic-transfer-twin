@@ -9,7 +9,7 @@ baselines. A preliminary trial for the SciNet project.
 Across 180 simulated runs, the agent team beat both baselines in all 120 same-seed comparisons and had 0 late transfers. Plain rerouting already fixes much of a link failure (83% of the agents' gain on 1000Genome 8ch, 53% on Montage 0.1°). Congestion is different: rerouting does nothing there, and on 1000Genome 8ch the agents finish at 0.83 D against 1.17 D, where D is the deadline.
 <!-- SUMMARY:END -->
 
-**Read:** [write-up](docs/writeup.md) · [how it works](docs/HOW_IT_WORKS.md) · [build log](docs/BUILD_LOG.md)
+**Read:** [write-up](docs/writeup.md) (short report) · [how it works](docs/HOW_IT_WORKS.md) (complete reference: every rule, limitation and output) · [build log](docs/BUILD_LOG.md)
 
 **Real vs. synthetic:** the workflow traces (tasks, dependencies, file sizes, runtimes) are real
 public data. Everything else is synthetic and labeled so: task placement, deadlines, the network
