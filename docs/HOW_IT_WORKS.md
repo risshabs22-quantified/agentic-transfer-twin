@@ -322,41 +322,68 @@ Step by step (`att/experiment.py::execute`):
 
 > **In plain words:** The project starts from published records of real science jobs, works out which computing center each step runs at, which files must travel, and when each file is due.
 
-**Data.** Four public traces from the [WfCommons WfInstances](https://github.com/wfcommons/WfInstances)
-project (LGPL-3.0, credited in `data/NOTICE.md`), downloaded by `scripts/fetch_data.py` and committed
-in `data/raw/`. From each trace (WfFormat 1.6) the code reads only: task ids, parents, children, input
-and output files, file sizes in bytes, and task runtimes in seconds.
+**Where this fits.** This is the first step of every run. Everything later (the simulation, the
+planners, the results) works on the list of file transfers produced here. If this step were wrong,
+every result would be wrong, so it is checked against exact expected numbers.
 
-| Key | Trace | Tasks | Role | `data_scale` |
+**What goes in.** Four published workflow records (traces) from the WfCommons project. They are
+stored in `data/raw/`, and their license and credit are in `data/NOTICE.md`. From each record the
+project reads only six things:
+- the list of tasks;
+- which tasks come before each task ("parents") and after it ("children");
+- which files each task reads and which it writes;
+- how big each file is, in bytes;
+- how long each task ran, in seconds.
+
+| Name used in the project | Workflow | Tasks | Used for | File-size multiplier |
 |---|---|---|---|---|
-| `1000genome-2ch` | 1000Genome, 2 chromosomes | 52 | dev (tuning only) | 200 |
-| `montage-005d` | Montage, 0.05° | 58 | dev (tuning only) | 1000 |
-| `1000genome-8ch` | 1000Genome, 8 chromosomes | 208 | result | 100 |
-| `montage-01d` | Montage, 0.1° | 103 | result | 300 |
+| `1000genome-2ch` | 1000Genome, 2 chromosomes | 52 | practice (adjusting settings) | 200 |
+| `montage-005d` | Montage, 0.05° patch of sky | 58 | practice (adjusting settings) | 1000 |
+| `1000genome-8ch` | 1000Genome, 8 chromosomes | 208 | the reported results | 100 |
+| `montage-01d` | Montage, 0.1° patch of sky | 103 | the reported results | 300 |
 
-**Placement (synthetic).** Each task goes to one of four compute sites, `[Caltech, UCSD, FNAL,
-ORNL]`, by `sites[sha256("<seed>:<task id>") mod 4]`. sha256 is used instead of Python's `hash()`
-because `hash()` of a string changes between processes. A different seed gives a different
-placement, which is how seeds create different situations. Raw input files (produced by no task)
-start at the source site, CERN.
+**Step 1: decide where each task runs.** The records don't say which site each task ran at in a
+multi-site setup, so the project assigns one. There are four compute sites (Caltech, UCSD, FNAL,
+ORNL). Each task is sent to one of them by a fixed scrambling formula applied to the seed number and
+the task's name. It behaves like a dice roll, but the same seed always gives the same answer, on any
+computer and in any program run. (The formula is sha256, a standard way to scramble text. Python's
+own quicker method can give different answers each time a program starts, which would break
+repeatability.) A different seed gives a different arrangement, which is how the experiment gets many
+different situations from the same workflow. Raw input files, which no task produces, start at CERN.
 
-**Deadlines (synthetic, critical-path method).** A forward pass computes each task's earliest finish
-time if data moved instantly. The longest of these is the critical path, and the workflow deadline
-is **D = 1.5 × critical path**. The slack factor 1.5 is fixed and never tuned. A backward pass from D
-gives each task's latest start time. A transfer's deadline is the latest start time of the earliest
-task at its destination that needs the file.
+**Step 2: work out the deadlines.**
+1. Pretend files travel instantly and work out when each task could finish at the earliest, given
+   the tasks it waits for.
+2. The longest such chain is the **critical path**. The workflow can never finish sooner than that,
+   however fast the network is.
+3. The workflow's **deadline D** is set to 1.5 times the critical path. The 1.5 is fixed for the whole
+   project and was never adjusted.
+4. Working backwards from D, each task gets a **latest start time**: the last moment it can start
+   without making the workflow miss D.
+5. Each file transfer's deadline is the latest start time of the first task at its destination that
+   needs it.
 
-**Transfers.** For every task input whose source site differs from the task's site, one transfer is
-created per (file, destination site); several tasks at one site that read the same file share one
-copy. Each transfer records its id (`<file>@<site>`), bytes, source, destination, producing task
-(`after_task`, or none for raw inputs) and deadline.
+**Step 3: list the transfers.** Whenever a task needs a file that is at a different site, a transfer
+is created to bring the file to the task's site. If several tasks at the same site need the same
+file, it is sent there only once. Each transfer records:
+- a name in the form `<file>@<destination site>`;
+- its size;
+- where it comes from and where it goes;
+- which task produces it (or none, for raw input data);
+- its deadline.
 
-**Scaling (synthetic).** At real sizes the files barely load a 100 Gbps network, so every size is
-multiplied by the workflow's `data_scale`. Section 9 explains how each value was chosen.
+**Step 4: scale the file sizes.** At their real sizes the files are too small to stress a 100 Gbps
+network, so nothing interesting would happen. Every file size is multiplied by the workflow's
+multiplier from the table above. How each multiplier was chosen, by a rule that could not favor any
+planner, is in section 9.
 
-**Check.** With seed 0 and `data_scale` 1, extraction gives 62, 140, 179 and 248 transfers (8.67,
-0.34, 38.97 and 0.68 GB) and D = 307.029, 32.078, 601.916 and 31.683 s for the four traces in the
-order above. `tests/test_extract.py` checks these exactly.
+**How it is checked.** With seed 0 and no size multiplier, the four workflows must give exactly 62,
+140, 179 and 248 transfers, moving 8.67, 0.34, 38.97 and 0.68 GB, with deadlines of 307.029, 32.078,
+601.916 and 31.683 seconds (in the table's order). An automatic test checks these numbers, and checks
+that two separate program runs give identical output.
+
+*In the code:* `att/extract.py` (the steps above), `scripts/fetch_data.py` (downloads the records),
+`tests/test_extract.py` (the checks).
 
 ---
 
@@ -364,11 +391,14 @@ order above. `tests/test_extract.py` checks these exactly.
 
 > **In plain words:** The network is a made-up map of six places and seven connections. Each connection has a size and a travel time, other traffic comes and goes on it, and in some tests one connection jams or closes.
 
-All of this is synthetic. Site names are for flavor; the numbers are invented.
+**Where this fits.** This is the world the files travel through. It sets how fast each file can move
+at any moment, and it creates the trouble (a jam, a closure) that the planners have to deal with.
+Everything here is invented; the place names are only labels.
 
-**Topology** (`configs/topology.yaml`; links are undirected and both directions share capacity):
+**The map.** Six places joined by seven links. Each link carries data in both directions, and the two
+directions share its capacity.
 
-| Link | Capacity | One-way delay |
+| Link | Capacity | Travel time (one way) |
 |---|---|---|
 | CERN – StarLight | 400 Gbps | 90 ms |
 | StarLight – FNAL | 400 Gbps | 2 ms |
@@ -378,39 +408,48 @@ All of this is synthetic. Site names are for flavor; the numbers are invented.
 | Caltech – UCSD | 100 Gbps | 5 ms |
 | FNAL – UCSD | 100 Gbps | 55 ms |
 
-Everything from CERN passes through StarLight. Two facts about this map drive many results. The
-lowest-delay route from CERN to UCSD goes through Caltech (145 ms against 147 ms through FNAL), so the
-StarLight–Caltech link carries traffic for both Caltech and UCSD. And when that link is down, the only
-way into {Caltech, UCSD} is the FNAL–UCSD link.
+StarLight is the hub: everything leaving CERN goes through it. Two features of this map explain many
+of the results:
+- the quickest route from CERN to UCSD goes through Caltech (145 ms, against 147 ms through FNAL), so
+  the StarLight–Caltech link carries traffic for both Caltech and UCSD;
+- when that link is closed, the only way left into Caltech and UCSD is the FNAL–UCSD link.
 
-**Background load** (`att/network.py::BackgroundLoad`). Other traffic takes a fraction of each link:
+**Other traffic.** Real links are shared, so each link carries other people's traffic, called
+background load. It is described as the fraction of the link it uses:
 
 ```
-load(link, t) = 0.2 + 0.1 × sin(2π t / (0.5 D) + phase_link) + noise_link(t) + surge_extra(link, t)
-                clipped to [0, 0.95]
+load = 0.2  +  0.1 × (a slow wave)  +  (a small random wobble)  +  (any traffic jam)
+       never below 0 and never above 0.95
 ```
 
-- `phase_link` is drawn uniformly in [0, 2π) per link.
-- `noise_link` is Normal(0, 0.05), constant over intervals of 0.005 × D.
-- All phases and the whole noise table are drawn once, up front, from one generator seeded with the
-  run's seed, so nothing a planner does can change them.
-- Load is re-sampled at the start of every grid cell of width **dt = D / 1000** and held for the cell.
-- The 0.95 cap means a link that is up always keeps at least 5% free.
+- **0.2:** on average, other traffic uses 20% of every link.
+- **The slow wave** moves the load up and down by up to 10 percentage points. One full cycle takes
+  half the deadline D, and each link starts the cycle at its own random point, so links don't all
+  peak together.
+- **The random wobble** adds a few percentage points up or down (a bell-curve spread of 5
+  percentage points). It changes every 0.5% of D.
+- **The 0.95 ceiling** means an open link always keeps at least 5% of its capacity free.
+- **Timing:** the load is updated every D / 1000 and held steady in between.
 
-**Free capacity** = capacity × (1 − load), converted from Gbps to bytes per second
-(× 10⁹ / 8), or 0 while the link is down.
+All the random parts are drawn once at the very start of a run from that run's seed. Nothing a
+planner does can change them, and every planner faces exactly the same traffic.
 
-**Scenarios** (`configs/scenarios.yaml`; times are fractions of D so short and long workflows are
-stressed alike):
+**Free capacity** is what's left for the workflow: the link's capacity times (1 − load), or zero
+while the link is closed. Internally it is converted from bits to bytes per second (divide by 8),
+because file sizes are in bytes.
 
-| Scenario | Event | When |
+**The three situations** (times are fractions of D, so a short workflow and a long one get
+proportionally the same trouble):
+
+| Situation | What happens | When |
 |---|---|---|
-| `normal` | none | |
-| `congestion` | surge of +0.7 load on StarLight–ORNL (pushes it to the 0.95 cap) | 0.05 D to 0.5 D |
-| `link_failure` | StarLight–Caltech down | 0.15 D to 0.75 D |
+| `normal` | only the background traffic | |
+| `congestion` | +70 percentage points of extra traffic on StarLight–ORNL, which pushes it to the 95% ceiling | from 5% to 50% of D |
+| `link_failure` | StarLight–Caltech closes completely | from 15% to 75% of D |
 
-`python scripts/show_network.py` prints each link's free capacity at several moments of each
-scenario.
+*In the code:* `configs/topology.yaml` (the map), `configs/scenarios.yaml` (traffic and situations),
+`att/network.py` (the traffic model). `python scripts/show_network.py` prints each link's free
+capacity at several moments of each situation.
 
 ---
 
@@ -418,84 +457,100 @@ scenario.
 
 > **In plain words:** The simulator plays out the whole job, like a precise fast-forward movie: files move over their routes, sharing each connection; steps start when their files arrive; and everything is measured.
 
-`att/simulator.py`. The simulator is the "twin": it moves bytes over the network model and runs the
-workflow's tasks.
+**Where this fits.** The simulator is the stage everything happens on. It takes the transfer list
+(section 3) and the network (section 4), asks a planner (section 6) what to do, plays out the result,
+and measures how well it went. It's called the "digital twin" because it stands in for a real network
+the planners could one day control.
 
-**How time moves.** The simulator is event-driven. Between two interesting moments nothing changes,
-so every transfer moves at a constant rate, and the clock jumps straight to the next moment. The
-candidates are:
-- the next grid boundary, where capacity is re-sampled (only while some transfer is active);
-- the next scheduled event: a file arriving, a task finishing, a planned start time, or a scenario
-  event switching on or off;
-- the moment some transfer's last byte leaves at its current rate;
-- the moment some stalled transfer reaches its timeout.
+**How time moves.** Instead of ticking forward in small fixed steps, the simulator jumps straight to
+the next moment when something changes. Between those moments nothing changes, so every file moves at
+a steady speed. The next moment is the earliest of:
+- the next traffic update (only while files are moving);
+- a file arriving, a task finishing, a planned start time, or a jam or closure starting or ending;
+- some file finishing sending at its current speed;
+- some stuck file reaching its time limit.
 
-So arrival, failure and finish times are exact for the piecewise-constant capacity model instead of
-being rounded to a time step. A full run takes a fraction of a second.
+This makes every arrival, failure and finish time exact rather than rounded, and a whole run takes
+well under a second.
 
-**Transfer states.** `waiting` (its producer has not finished), `queued` (data exists but the plan
-says start later), `active` (moving, or stalled if a link on its route is down), `sent` (last byte
-left; the file arrives after the route's one-way delay), `arrived`.
+**What a file can be doing:**
+- **waiting:** the task that makes it hasn't finished;
+- **queued:** it exists, but the plan says start later;
+- **active:** being sent, or **stalled** if a link on its route is closed;
+- **sent:** the last bit has left, and the file arrives after the route's travel time;
+- **arrived.**
 
-**Tasks.** A task starts the moment all its parents have finished and every input file is at its
-site. Inputs produced at the same site are there when their producer finishes; others need their
-transfer to arrive. Tasks run for their real runtimes from the trace. Compute is unlimited.
+**Tasks.** A task starts the moment every task before it has finished and every file it needs has
+arrived at its site. Files made at the same site are available as soon as their task finishes. Each
+task runs exactly as long as it did in the real record. There is no limit on how many tasks a site can
+run at once.
 
-**Sharing a link.** On each link, the moving transfers split the free capacity in proportion to
-priority: a priority-2 transfer gets twice the share of a priority-1 transfer. A transfer's rate is
-its smallest share along its route. A stalled transfer takes no share. This is deliberately simple.
-Capacity a transfer cannot use, because it is held back elsewhere on its route, is not handed to
-others. An optional weighted max-min fair model (`sharing="maxmin"`) does hand it out, and section 12
-explains what it changed.
+**How a link is shared.** All the files currently moving over a link share its free capacity. Each
+gets a share in proportion to its priority, so an urgent file (priority 2) gets twice the share of a
+normal one (priority 1). A file's actual speed is its smallest share anywhere along its route, the way
+a road trip is limited by its slowest stretch. Stalled files take no share.
 
-**Stalls and timeouts.** A transfer whose route has a down link is stalled. If it stays stalled for
-**0.1 × D** without interruption, the attempt fails: its remaining bytes go back to the full size, the
-failure is counted, the planner gets a `transfer_failed` event, and the transfer keeps waiting on its
-route. The timer resets when the transfer moves again or gets a new route, and a timeout does not fire
-if the link comes back at that same instant. Rerouting a transfer keeps the bytes already sent.
+This rule is deliberately simple. If a file can't use its full share on one link because another link
+on its route holds it back, the unused part is not handed to anyone else. A second, more generous rule,
+called "max-min fair" sharing, does hand it out. It is available as an option and was used to check
+that the conclusions hold (section 12).
 
-**Order within one instant** (so runs are deterministic): transfers whose last byte just left, then
-scheduled events in this order (arrivals, task finishes, planned starts, scenario events), then
-timeouts. This repeats until nothing more happens at that instant.
+**Stuck files and time limits.**
+- A file whose route includes a closed link is stalled.
+- If it stays stalled for 10% of D without a break, that sending attempt **fails**: the file starts
+  over from zero, the failure is counted, and the planner is told so it can react. Then the file
+  keeps waiting on its route.
+- The timer restarts whenever the file moves again or is given a new route.
+- No failure is counted if the link reopens at the exact moment the time limit is reached.
+- A file moved to a new route keeps whatever it had already sent. Only a failed attempt starts over.
 
-**Plans and validation** (`att/planner.py`). A plan maps transfer ids to
-`{"path": [...], "priority": 1 or 2, "start_s": seconds}`. Every entry is checked before it is applied:
+**When several things happen at the same instant**, they are handled in a fixed order so every run is
+repeatable: files that just finished sending, then arrivals, then task completions, then planned
+starts, then jams and closures, then time limits.
 
-- the transfer exists and has not already sent all its bytes;
-- the route is a list of sites, starts at the transfer's source, ends at its destination, repeats no
-  site, and uses only real links;
+**Checking a plan.** A plan says, for each file, its route, its priority (1 or 2) and its earliest
+start time. Before any part of a plan is used, each entry is checked:
+- the file exists and hasn't already finished sending;
+- the route starts where the file is and ends where it must go, never visits a place twice, and only
+  uses links that exist;
 - the priority is 1 or 2;
-- `start_s` is a number and not in the past.
+- the start time is a real number and not in the past.
 
-Rejected entries are logged with a reason and the previous entry stays in force. A transfer left out
-of the initial plan gets the default: lowest-delay route, priority 1, start at 0.
+An entry that fails is rejected and written down with the reason, and the previous entry stays in
+place. A file the planner forgot to mention gets the default: quickest route, priority 1, start
+immediately.
 
-**Metrics** (`Simulator.metrics`; the first eleven are the columns of `summary.csv`):
+**What is measured in every run:**
 
-| Metric | Meaning |
+| Measurement (column name) | Meaning |
 |---|---|
-| `completed` | every task finished before 20 × D |
-| `completion_s` | time the last task finished (empty if not completed) |
-| `failed_attempts` | number of timed-out attempts, over all transfers |
-| `failed_transfers` | transfers with at least one timed-out attempt |
-| `late` | transfers that arrived after their deadline, or never arrived |
-| `n_transfers` | transfers in the run |
-| `gb_moved` | bytes of arrived transfers / 10⁹ |
-| `avg_gbps` | arrived bits / completion time / 10⁹ |
-| `data_wait_s` | sum over tasks of (start time − finish time of its last parent, or 0 for tasks without parents) |
-| `reroutes` | route changes after the initial plan |
-| `decisions` | planner calls logged (1 initial plan + 1 per event) |
-| `end_s`, `deadline_D_s`, `tasks_done`, `transfers_arrived`, `rejected_entries` | extra fields in the manifest |
+| completed (`completed`) | every task finished before 20 × D |
+| completion time (`completion_s`) | when the last task finished, in seconds (blank if not completed) |
+| failed attempts (`failed_attempts`) | how many sending attempts timed out, in total |
+| failed transfers (`failed_transfers`) | how many files had at least one attempt time out |
+| late transfers (`late`) | how many files arrived after their deadline, or never arrived |
+| transfers (`n_transfers`) | how many files had to travel |
+| data moved (`gb_moved`) | gigabytes delivered |
+| average speed (`avg_gbps`) | data delivered ÷ completion time, in Gbps |
+| waiting for data (`data_wait_s`) | for each task, the time between its last earlier task finishing (or the run starting) and the task actually starting, added up |
+| route changes (`reroutes`) | how many times a route was changed after the starting plan |
+| decisions (`decisions`) | how many times the planner was asked (once at the start, plus once per event) |
 
-**Forecasts** (`Simulator.snapshot` and `forecast`). A forecast copies the present state into a new
-simulator in which every link keeps its current free capacity, down links stay down, there is no
-noise and no future event, and nobody reacts. It runs a proposed plan to the end and returns its
-metrics. This "persistence forecast" provably cannot see the future, because the copy contains none of
-it. Making a forecast never changes the real run (tested).
+The run's settings file also records the end time, the deadline D, the number of tasks completed and
+files delivered, and the number of rejected plan entries.
 
-**Float guard.** If a transfer's remaining bytes are so small that the time to send them is below
-floating-point resolution at the current clock, the transfer is treated as sent. Without this the loop
-could take zero-length steps forever; it was found during development.
+**Forecasts.** A forecast answers "if we used this plan, how would things turn out?". It copies the
+current situation into a separate, throwaway simulation in which every link keeps today's free
+capacity, closed links stay closed, there is no random wobble, nothing new happens, and nobody
+changes the plan. Then it runs that copy to the end. Because the copy contains nothing about the
+future, a forecast cannot see what is coming. Making a forecast never affects the real run, and a
+test checks this.
+
+**A safety catch.** If a file has so little left to send that the time needed is too small for the
+computer to represent, it is treated as sent. Without this, the simulator could get stuck repeating
+the same instant forever, which happened once during development.
+
+*In the code:* `att/simulator.py` (the simulator and forecasts), `att/planner.py` (plan checking).
 
 ---
 
@@ -503,109 +558,115 @@ could take zero-length steps forever; it was found during development.
 
 > **In plain words:** A planner decides each file's route, how urgent it is, and when it may start. Two simple rule-based planners are compared with a team of three agents that work out urgency, check routes and make the final plan.
 
-Every planner implements `plan(transfers, view)` and `on_event(event, view)` (`att/planner.py`). The
-`view` shows only the present: the clock, each link's capacity, delay, free capacity and up/down
-state, each transfer's status and plan entry, and the tasks' static data and status.
+**Where this fits.** The planners are what the experiment compares. The simulator asks a planner for
+a plan at the start and again every time something happens: a link closes or reopens, a jam starts
+or ends, or a file's attempt fails. Planners only ever see the present: the time, each link's size,
+travel time, free capacity and open/closed state, each file's status and current plan, and each
+task's details and status.
 
-### `baseline`
+### The baseline
 
-Every transfer on its lowest-delay route (Dijkstra on delay), priority 1, start as soon as its data
-exists. It never changes anything, so stuck transfers wait and time out.
+Every file takes the quickest route on the map (fewest milliseconds of travel time), at normal
+priority, starting as soon as it exists. It never changes anything. If a link closes, its files wait
+and keep timing out until the link reopens. This is the simple rule everything is measured against.
 
-### `baseline_reroute`
+### The baseline with detours (`baseline_reroute`)
 
-The same, plus one rule: on `link_down` or `transfer_failed`, every unfinished transfer whose route
-uses a down link moves to the lowest-delay route that avoids all links that are down right now. It
-ignores congestion and never uses priorities. It exists to measure how much of the agents' benefit
-plain rerouting already gives.
+The same, plus one rule: when a link closes, or a file's attempt fails, every unfinished file whose
+route uses a closed link is moved to the quickest route that avoids every currently closed link. It
+ignores jams and never marks anything urgent. Its job is to answer "isn't the benefit just from
+rerouting?"
 
-### `agents` (rule mode, the main results)
+### The agent team (`agents`)
 
-Three agents in `att/agents/`. Every decision opens one MCP client session and makes all its tool
-calls through it (section 7); the agents never touch the simulator.
+Three programs with one job each. All their information comes from the tools in section 7, never from
+inside the simulator.
 
-**Workflow agent** (`workflow_agent.py`). For each unfinished transfer:
+**The workflow agent: how urgent is each file?** For every file not yet sent:
+1. **When will the data exist?** Straight away for raw data; the producing task's finish time if it
+   has finished; its start time plus its run time if it is running; otherwise the later of "now" and
+   its earliest possible finish.
+2. **Earliest arrival** = when the data exists + the estimated sending time on the quickest open route.
+3. **Slack** = the file's deadline − its earliest arrival. This is the spare time.
 
-- *data ready* = 0 for raw inputs; the producer's finish time if it is done; its start + runtime if
-  it is running; otherwise the later of now and its critical-path earliest finish;
-- *earliest arrival* = max(now, data ready) + `estimate_transfer_time` on the lowest-delay route that
-  is up;
-- *slack* = deadline − earliest arrival.
+The files with the least spare time, 30% of them, are marked urgent (priority 2). Ties are broken by
+the order of the workflow record, and each file gets a one-line reason.
 
-Transfers are sorted by slack, ties in workflow order, and the lowest-slack 30%
-(`priority_fraction`, rounded to the nearest whole transfer) get priority 2. Each gets a one-line
-reason.
+**The network agent: what routes are there, and how busy is each road?** For every file it asks for up
+to three quickest routes that avoid closed links, estimates the sending time on each with today's
+traffic, and recommends the fastest. It also flags any link with less than 30% of its capacity free
+as busy.
 
-**Network agent** (`network_agent.py`). For each transfer it asks for up to 3 lowest-delay routes
-avoiding down links and estimates the time on each at today's free capacity. It recommends the
-fastest one, and flags links with less than 30% of their capacity free as busy.
+**The coordinator: the final plan.**
 
-**Coordinator** (`coordinator.py`), the team's planner.
+*At the start:*
+1. Put the files in order: urgent ones first, then the least spare time.
+2. Build the **load-balanced plan**. Going down that list, give each file the route option whose
+   busiest link would be least overloaded. "Overloaded" is measured as the data already assigned to
+   the link plus this file, divided by how much the link can carry per second. Then add the file to
+   those links. If two routes tie, the quicker one wins. This spreads big files over parallel roads
+   instead of piling them onto one.
+3. Build two more plans: the **fastest-route plan** (each file on the network agent's recommendation)
+   and the **quickest-on-the-map plan** (each file on its quickest open route). All three plans use
+   the workflow agent's urgency marks.
+4. Forecast all three and rank them: first whether they finish at all, then finish time, then late
+   files, then failed files.
+5. Pick the best, but only abandon the quickest-on-the-map plan if another one is forecast at least 5%
+   faster. Forecasts are educated guesses, and smaller differences turned out to be noise during
+   adjustment.
+6. Check the plan with the plan checker.
 
-*Initial plan:*
-1. Order the transfers: priority 2 first, then least slack.
-2. Build the **load-balanced** draft. Walk down that order and give each transfer the route, among its
-   options, with the lowest **projected bottleneck load**:
-   `max over the route's links of (bytes already assigned to the link + this transfer's bytes) / the link's free bytes per second`.
-   Then add the transfer's bytes to those links. Ties go to the lower-delay route.
-3. Build the **fastest-route** draft (each transfer on the network agent's recommendation) and the
-   **lowest-delay** draft (each transfer on its lowest-delay route that is up). All three use the
-   workflow agent's priorities.
-4. Forecast all three with `simulate_plan` and rank them by (completes?, completion time, late
-   transfers, failed transfers).
-5. Keep the best, but leave the lowest-delay draft only if the best is forecast at least 5% faster
-   (`draft_margin`). Forecasts are guesses, and smaller gains were within their error during tuning.
-6. Check the plan with `submit_plan`.
+*When something happens*, only the files affected by it are reconsidered:
 
-*On each event*, only the affected transfers are reconsidered:
-
-| Event | Affected transfers | Their options |
+| Event | Which files are reconsidered | Which routes they may move to |
 |---|---|---|
-| `link_down`, `transfer_failed` | unfinished transfers whose route uses a down link | top 3 routes avoiding down links |
-| `surge_start` | unfinished transfers whose route uses the surged link | top 3 routes |
-| `link_up`, `surge_end` | unfinished transfers not using the restored link | routes that use it, plus the current route |
+| a link closes, or an attempt fails | unfinished files whose route uses a closed link | up to three quickest routes avoiding closed links |
+| a jam starts | unfinished files whose route uses the jammed link | up to three quickest routes |
+| a link reopens, or a jam ends | unfinished files not using that link | routes that use it, or staying put |
 
-The bytes of all other unfinished transfers are counted on their current routes first. Then the
-affected transfers, most urgent first, each take the option with the lowest projected bottleneck
-load. A transfer moves only if its current route is down, or if the new route's projected load is at
-least 10% lower (`move_margin`). The workflow agent re-ranks every unfinished transfer, and any whose
-priority changed are updated. Finally the coordinator forecasts the change against keeping the current
-plan and applies it only if the change is forecast to be no worse.
+The data of all other unfinished files is first counted on the links they already use. Then the
+reconsidered files, most urgent first, each take the option whose busiest link would be least
+overloaded. A file only moves if its current route is closed, or if the new route is predicted to be
+at least 10% less overloaded. The workflow agent also re-ranks urgency, and any file whose urgency
+changed is updated. Finally the coordinator forecasts "with the change" against "without it" and makes
+the change only if it is not forecast to be worse.
 
-*Parameters* (frozen in `configs/experiment.yaml`; the three tuned ones were chosen as in section 9):
+*Settings* (locked before the final test; the first three were adjusted on practice data, section 9):
 
-| Parameter | Value | Meaning |
+| Setting | Value | Meaning |
 |---|---|---|
-| `priority_fraction` | 0.3 | share of transfers given priority 2 (tuned) |
-| `move_margin` | 0.1 | minimum projected improvement for a reroute on an event (tuned) |
-| `draft_margin` | 0.05 | minimum forecast gain to leave the lowest-delay plan (tuned) |
-| `busy_threshold` | 0.3 | free-capacity fraction below which a link is flagged busy |
-| `k_paths` | 3 | route options per transfer |
+| `priority_fraction` | 0.3 | share of files marked urgent |
+| `move_margin` | 0.1 | how much better a new route must look before a file is moved after an event |
+| `draft_margin` | 0.05 | how much faster another plan must be forecast before the quickest-on-the-map plan is abandoned |
+| `busy_threshold` | 0.3 | a link with less free capacity than this share is flagged busy |
+| `k_paths` | 3 | how many route options each file gets |
 
-### `agents_static` (supplementary ablation)
+### Agents without reactions (`agents_static`, an extra test)
 
-The agents' initial plan, but `on_event` always returns no change. Comparing it with `agents`
-separates "planned well up front" from "reacted well to events".
+The agent team's starting plan, but it never reacts to anything afterwards. Comparing it with the full
+team shows how much of the benefit comes from planning well at the start and how much from reacting
+well later.
 
-### LLM mode (optional, `mode=llm`)
+### LLM mode (an optional extra test)
 
-`att/agents/llm_coordinator.py`. The same agents run the same tools and the coordinator builds the
-same drafts and proposals. Then one Claude API call (model `claude-opus-5-5`, effort `medium`)
-gets the final say:
+The same agents gather the same information and the coordinator builds the same plans and proposals.
+Then the final choice is handed to Claude, an AI language model made by Anthropic (model
+`claude-opus-5-5`), with one request per decision:
+- **at the start**, Claude sees the network, the three plans with their forecasts, which plan the rules
+  would pick, and the 60 most urgent files, and chooses a plan, optionally changing some urgency marks;
+- **after an event that produced a proposal**, Claude sees the event, the network, the proposal with
+  both forecasts, and the affected files with their numbered route options. It answers "apply the
+  proposal", "keep the current plan", or "custom" with its own route and urgency choices.
 
-- **initial plan:** Claude sees the network state, the three drafts with their forecasts, what the
-  rule coordinator would pick, and the 60 most urgent transfers. It answers with JSON naming a draft
-  and any priority overrides;
-- **events with a proposal:** Claude sees the event, the network state, the proposal and both
-  forecasts, and the affected transfers with their numbered route options. It answers
-  `apply_proposal`, `keep_current_plan`, or `custom` with chosen options and priorities.
+Claude must answer in a fixed format, and its answer goes through the plan checker. If the request
+fails, is declined, or the answer can't be used, the normal rule decision is used instead, and the
+record says so. If Anthropic's safety system declines a request, the service automatically retries it
+on another Claude model. Every request is priced from its size and added to a running total. The run
+stops before any request that could push the total past $25, and runs already done are never repeated
+or paid for twice. The full question and answer of every request are saved.
 
-The answer must match a JSON schema and is validated again with `submit_plan`. If the call fails, is
-refused or returns something unusable, the rule decision is used and the log says "fallback". Refusal
-fallbacks to another model are switched on in the API call. A spend ledger (`results/llm/spend.json`)
-prices every call from its token usage, and `scripts/run_llm.py` stops before any call that could push
-the total past $25. Runs that already exist are skipped, so a re-run never pays twice. The full prompt
-and raw answer of every call are stored in the decision log.
+*In the code:* `att/baseline.py`, `att/agents/workflow_agent.py`, `att/agents/network_agent.py`,
+`att/agents/coordinator.py`, `att/agents/llm_coordinator.py` and `att/llm.py`.
 
 ---
 
@@ -613,25 +674,29 @@ and raw answer of every call are stored in the decision log.
 
 > **In plain words:** The agents cannot look inside the simulator. They can only ask a fixed list of questions through a standard "service window" (MCP), and every answer describes the present, never the future.
 
-`att/tools.py` holds the tool functions. They take a view, return plain JSON, and expose only the
-present. `att/mcp_server.py::build_server(view)` registers each one as an MCP tool. Values that
-cannot exist (a path through a down link has no finite time) come back as `null`.
+**Where this fits.** The tools are the only way the agents learn anything about the network. This has
+two purposes. It keeps the comparison honest, because the agents cannot see anything a real system
+wouldn't know. And it makes the agents portable: because the tools are offered through MCP, a widely
+used open standard for connecting AI programs to tools, the same agents could be pointed at a real
+network offering the same tools.
 
-| Tool | Returns |
-|---|---|
-| `get_workflow_requirements()` | every transfer: id, file, bytes, src, dst, producing task, deadline, `data_ready_s`, status, remaining bytes, failed attempts, current route, priority, start time |
-| `get_network_state()` | the clock, and per link: ends, capacity, delay, up, free Gbps, load |
-| `get_paths(src, dst, k=3, avoid_down=False)` | up to k simple routes, lowest delay first |
-| `get_paths_many(pairs, k, avoid_down)` | the same for many (src, dst) pairs, keyed `"src->dst"` |
-| `estimate_transfer_time(bytes, path)` | seconds at the current free capacity of the slowest link, plus the route's delay; `null` if a link is down |
-| `estimate_many(items)` | the same for many (bytes, path) items |
-| `simulate_plan(plan, horizon_s=None)` | metrics of a persistence forecast of the plan (changed entries only) |
-| `submit_plan(plan)` | `{valid, accepted, rejected: {id: reason}}` using the simulator's validation |
+**The questions the agents can ask:**
 
-Real outputs from the demo twin (1000Genome 2ch, normal, seed 0, t = 0):
+| Tool | Question it answers | What comes back |
+|---|---|---|
+| `get_workflow_requirements` | Which files need to move, and what is their status? | each file's name, size, from, to, producing task, deadline, when its data will exist, status, data still to send, failed attempts, current route, urgency and start time |
+| `get_network_state` | How is the network right now? | the current time, and for each link: its ends, capacity, travel time, open or closed, free capacity and load |
+| `get_paths` | What are the quickest routes from A to B? | up to 3 routes, quickest first, optionally skipping closed links |
+| `get_paths_many` | The same, for many pairs at once | routes for each pair |
+| `estimate_transfer_time` | How long would this file take on this route right now? | seconds, based on the busiest link's free capacity plus travel time; empty if a link on the route is closed |
+| `estimate_many` | The same, for many files at once | one estimate per file |
+| `simulate_plan` | How would this plan turn out if nothing changed? | the forecast's results (section 5) |
+| `submit_plan` | Is this plan allowed? | valid or not, how many entries passed, and the reason for each rejection |
+
+Real answers from the demo setup (1000Genome 2 chromosomes, normal situation, seed 0, at the start):
 
 ```json
-get_network_state -> links[0]:
+get_network_state -> first link:
 {"link": ["CERN", "StarLight"], "gbps": 400.0, "ms": 90.0, "up": true, "free_gbps": 331.39, "load": 0.17}
 
 estimate_transfer_time(bytes=1e10, path=["CERN","StarLight","Caltech"]):
@@ -641,19 +706,28 @@ submit_plan({"ALL.chr21.100000.vcf@FNAL": {"path": ["CERN","UCSD"], "priority": 
 {"valid": false, "accepted": 0, "rejected": {"ALL.chr21.100000.vcf@FNAL": "path must start at CERN and end at FNAL"}}
 ```
 
-**How the agents call them.** `att/tool_client.py::run_with_tools(server, fn)` opens one MCP client
-session inside one `asyncio.run` per decision, makes every call through it, and records each call
-(agent, tool, arguments, one-line result) for the decision log. Long arguments such as whole plans are
-recorded as a size and a sha256 prefix. In experiments the client connects to the server in-process;
-the same server also runs as a separate process over stdio:
+The first says the CERN–StarLight link is open with about 331 of its 400 Gbps free. The second says
+10 GB would take about 1.1 seconds on that route right now. The third rejects a plan because the route
+doesn't start and end in the right places.
+
+**How it is set up.**
+- **The tool server.** A small program, the **server**, offers these tools.
+- **The client.** For each decision the agents open one connection to the server, called a **client**,
+  ask all their questions through it, and close it.
+- **The record.** Every question and a one-line summary of its answer are written down, along with
+  which agent asked. Long inputs, such as a whole plan, are recorded as their size and a short
+  fingerprint.
+- **During experiments** the client and server run inside the same program, to save time.
+- **Outside experiments** the same server can run as its own program, so any MCP software can use it:
 
 ```bash
-python scripts/mcp_demo_client.py                              # calls every tool over stdio
-npx @modelcontextprotocol/inspector python -m att.mcp_server   # browse the tools in the MCP Inspector
+python scripts/mcp_demo_client.py                              # asks every question from a separate program
+npx @modelcontextprotocol/inspector python -m att.mcp_server   # explore the tools in the MCP Inspector app
 ```
 
-To use the tools from Claude Desktop, add this to `claude_desktop_config.json` (on macOS in
-`~/Library/Application Support/Claude/`) with this folder's absolute path, then restart it:
+To use the tools from the Claude Desktop app, add this to its settings file
+`claude_desktop_config.json` (on a Mac, in `~/Library/Application Support/Claude/`), with this
+folder's location, then restart the app:
 
 ```json
 {
@@ -667,46 +741,66 @@ To use the tools from Claude Desktop, add this to `claude_desktop_config.json` (
 }
 ```
 
+*In the code:* `att/tools.py` (the questions), `att/mcp_server.py` (the server),
+`att/tool_client.py` (the client and the record of questions).
+
 ---
 
 ## 8. Decision logs, manifests and replay
 
 > **In plain words:** Every decision is written down, like a flight recorder. Replay re-runs a test using only those records and checks that every result comes out identical.
 
-**Decision log** (`att/decision_log.py`). One JSON line per planner call, gzip-compressed, in
-`results/logs/<run_id>.jsonl.gz`. Every planner is logged, baselines included, and "no change"
-answers are logged too. Fields:
+**Where this fits.** This is what makes the results trustworthy and checkable. Anyone can see exactly
+what every planner did and why, and anyone can confirm that the recorded decisions really produce the
+reported results. For an automated system that changes how a network is used, being able to check its
+decisions afterwards matters as much as the decisions themselves.
 
-| Field | Content |
+**The decision log.** Every time a planner is asked for a decision, one entry is written. That
+includes the simple planners, and the times a planner chose to change nothing. Each run's entries are
+saved, compressed, in `results/logs/<run name>.jsonl.gz`. Each entry contains:
+
+| Part of the entry | What it holds |
 |---|---|
-| `run_id`, `seq`, `t` | which run, the decision's number, the simulated time |
-| `agent` | who decided (`coordinator`, `baseline`, ...) |
-| `trigger` | `initial_plan`, or the event: type, link or transfer id, time, sequence number |
-| `saw` | what the planner looked at: affected transfers, busy and down links, forecasts; in LLM mode also the prompt, raw answer, model and token usage |
-| `tool_calls` | every MCP call made for this decision |
-| `decision` | the plan entries returned, exactly as returned |
-| `rejected` | entries that failed validation, with reasons |
-| `reason` | one line |
+| `run_id`, `seq`, `t` | which run, the decision's number, and the simulated time |
+| `agent` | who decided |
+| `trigger` | what prompted it: the start, or the event with its time and number |
+| `saw` | what the planner looked at: affected files, busy and closed links, forecasts; in LLM mode also the full question, the answer, the model and its size |
+| `tool_calls` | every question asked through the tools |
+| `decision` | exactly what the planner answered |
+| `rejected` | any parts that failed the plan check, with reasons |
+| `reason` | a one-line explanation |
 
-The gzip header has a fixed timestamp, so the same run always writes a byte-identical file.
+The same run always produces the identical file, byte for byte.
 
-**Manifest** (`results/manifests/<run_id>.json`): `run_id`, the full settings dict from section 2,
-all metrics, the log path, the git commit that produced it, and the Python and package versions.
+**The run's settings file** (`results/manifests/<run name>.json`). Everything needed to recreate the
+run: the workflow file and a fingerprint of its contents, the sites, the deadline factor, the size
+multiplier, the situation's events, the traffic settings, the whole map, the simulator settings, the
+planner and its settings. It also holds all the measurements, the location of the log, the version of
+the code that produced it, and the versions of the software it used.
 
-**Replay** (`att/replay.py`, `scripts/replay.py`). A `ReplayPlanner` hands the simulator the logged
-initial plan, then the next logged decision at each event, after checking that the event the
-simulator reports has the logged type, sequence number, time, and link or transfer. No agent code
-runs and no API is called. The simulator is rebuilt from the manifest's settings alone, so a later
-config edit cannot leak in, and a changed data file is caught by its sha256. The replayed metrics
-must equal the manifest's: integers and booleans exactly, floats within 10⁻⁹ relative. Any
-difference, unused logged decision or unexpected event is reported and the script exits non-zero.
+**Replay.**
+1. Replay rebuilds the run from its settings file alone, so a later edit to the configuration files
+   can't sneak in, and a changed data file is caught by its fingerprint.
+2. Instead of running a planner, it hands the simulator the recorded decisions one by one.
+3. Before each one, it checks that the simulator is reporting the same event, at the same time, with
+   the same number, as the record says.
+4. At the end, every measurement must match the settings file: whole numbers exactly, others to
+   within one part in a billion.
+5. Any difference, any unused recorded decision, or any unexpected event is reported, and the check
+   fails.
+
+No planner code runs and no AI service is contacted.
 
 ```bash
 python scripts/replay.py --all                    # the 180 main runs
 python scripts/replay.py --llm                    # the LLM-mode runs
-python scripts/replay.py --dir results/ablation   # any supplementary folder (ablation, competing, maxmin)
+python scripts/replay.py --dir results/ablation   # any extra-experiment folder (ablation, competing, maxmin)
 python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents
 ```
+
+All 180 main runs and all extra runs replay exactly.
+
+*In the code:* `att/decision_log.py`, `att/replay.py`, `att/experiment.py`, `scripts/replay.py`.
 
 ---
 
@@ -714,45 +808,61 @@ python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents
 
 > **In plain words:** The main test is 180 runs. Settings were adjusted only on practice data before the test, then locked, so the final results could not be tuned in anyone's favor.
 
-**Main grid** (`scripts/run_experiments.py`): 2 result workflows × 3 scenarios × 10 evaluation seeds
-(0–9) × 3 planners = 180 runs. Runs do not depend on each other. `summary.csv` is rebuilt from the
-manifests in a fixed order, so running a subset with `--workflows/--scenarios/--seeds/--planners`
-refreshes only those runs and still gives the same table. The seed sets both placement and network
-noise and is shared by all planners, so every comparison is paired.
+**Where this fits.** This is the plan of the experiment itself: which runs are done, and how the few
+adjustable settings were chosen without giving any planner an unfair advantage.
 
-**Seeds kept apart.** Tuning seeds 100–104 and evaluation seeds 0–9 never overlap (tested).
+**The main experiment.** Every combination of 2 workflows (1000Genome 8 chromosomes, Montage 0.1°) ×
+3 situations × 10 seeds (0 to 9) × 3 planners = 180 runs. Runs don't affect each other. The results
+table is rebuilt from the saved settings files in a fixed order, so re-running only some runs (with
+`--workflows`, `--scenarios`, `--seeds` or `--planners`) gives the same table. Because the seed sets
+both where tasks run and how the traffic behaves, and is shared by all planners, every comparison is
+like-for-like.
 
-**Network tuning** (`scripts/tune.py`, baseline only, tuning seeds, before any agent existed):
+**Practice and test kept apart.** Practice seeds 100–104 and test seeds 0–9 never overlap, and a test
+checks this.
 
-1. `data_scale` is the largest value in {10, 20, 50, 100, 200, 300, 500, 1000} at which the baseline,
-   in `normal`, finishes within D on average and is late on at most 1% of transfers.
-2. A stress scenario counts as stressing a workflow if the baseline's mean completion is at least
-   10% worse than in `normal`, or it has any late or failed transfers. If not: (a) move the event to
-   the link carrying the most baseline bytes during the event window, (b) for a surge, raise it to
-   the load cap, (c) otherwise keep the scenario and report the result. Making scenarios harsher in
-   other ways, or raising `data_scale`, is not allowed.
+**Choosing the file-size multipliers.** This was done with the simple baseline only, on practice seeds,
+before the agents existed:
+1. The multiplier is the largest value from the list 10, 20, 50, 100, 200, 300, 500, 1000 at which
+   the baseline, in the normal situation, still finishes within D on average and is late on at most 1%
+   of files.
+2. Each trouble situation must actually cause trouble for the baseline: either it finishes at least
+   10% later than normal, or it has some late or failed files. If not, the allowed fixes, in order,
+   are:
+   - (a) move the event to the link that carried the most data during that time window;
+   - (b) for a jam, make it as heavy as the 95% ceiling allows;
+   - (c) otherwise leave it and report it.
 
-Outcome: ×200, ×1000, ×100 and ×300 for the four workflows. Every stress scenario stressed the
-1000Genome workflows. Congestion did not stress Montage 0.1° even after (a) and (b), so it was kept
-and reported. The full table is in `docs/BUILD_LOG.md` and `results/tuning/tuning.json`.
+   Making situations harsher in any other way, or raising the multiplier, is not allowed.
 
-**Agent tuning** (`scripts/tune_agents.py`, dev workflows and tuning seeds only): a grid of 36
-combinations of `priority_fraction` {0.1, 0.2, 0.3, 0.5}, `move_margin` {0, 0.1, 0.25} and
-`draft_margin` {0, 0.05, 0.1}, scored by mean completion time over the 2 dev workflows × 3 scenarios ×
-5 seeds. Chosen: 0.3, 0.1, 0.05. Output: `results/tuning/agent_tuning.json`. Everything was frozen in
-`configs/experiment.yaml` before any evaluation seed ran.
+The result was 200, 1000, 100 and 300 for the four workflows. Both trouble situations hurt the
+1000Genome workflows. The jam did not affect Montage 0.1° even after (a) and (b), so it was left as it
+was and reported. The full table is in `docs/BUILD_LOG.md` and `results/tuning/tuning.json`.
 
-**Supplementary experiments** (same evaluation seeds, nothing re-tuned, kept out of the 180):
+**Choosing the agents' settings.** This used the two practice workflows and practice seeds only.
+Every combination was tried (36 in total), and the one with the lowest average finish time across the
+2 practice workflows × 3 situations × 5 seeds was chosen:
+- urgent share: 10%, 20%, 30% or 50%;
+- move threshold: 0, 10% or 25%;
+- plan-switch threshold: 0, 5% or 10%.
 
-| Script | What it runs | Output |
+The winner was 30%, 10% and 5%. The search is saved in `results/tuning/agent_tuning.json`. All
+settings were then locked in `configs/experiment.yaml` before any test seed was used.
+
+**Extra experiments** (same test seeds, nothing re-adjusted, kept separate from the main 180):
+
+| Script | What it runs | Saved in |
 |---|---|---|
-| `run_ablation.py` | `agents_static` on the 60 result cells | `results/ablation/` |
-| `run_competing.py` | both result workflows on the network at once, 3 planners × 10 seeds | `results/competing/` |
-| `run_maxmin.py` | all 180 runs under max-min fair sharing | `results/maxmin/` |
-| `run_llm.py` | `agents` in LLM mode on the 60 result cells (costs money) | `results/llm/` |
+| `run_ablation.py` | the agents without reactions, on the same 60 situations | `results/ablation/` |
+| `run_competing.py` | both test workflows on the network at once, 3 planners × 10 seeds | `results/competing/` |
+| `run_maxmin.py` | all 180 runs again with the "max-min fair" sharing rule | `results/maxmin/` |
+| `run_llm.py` | the agents in LLM mode on the same 60 situations (costs money) | `results/llm/` |
 
-Every supplementary run has its own log and manifest, and all of them replay exactly
+Every extra run has its own log and settings file, and all of them replay exactly
 (`python scripts/replay.py --dir results/<folder>`).
+
+*In the code:* `scripts/run_experiments.py`, `scripts/tune.py`, `scripts/tune_agents.py`,
+`configs/experiment.yaml`.
 
 ---
 
@@ -760,32 +870,40 @@ Every supplementary run has its own log and manifest, and all of them replay exa
 
 > **In plain words:** This is a map of every file the experiments produce and what each one contains.
 
-| Path | What it is | Made by |
-|---|---|---|
-| `summary.csv` | one row per main run: workflow, scenario, seed, planner, mode, then the 11 metrics in section 5 | `run_experiments.py` |
-| `logs/<run_id>.jsonl.gz` | decision log of each main run | `run_experiments.py` |
-| `manifests/<run_id>.json` | settings, metrics, commit and versions of each main run | `run_experiments.py` |
-| `table.md` | full tables: mean ± std per workflow × scenario × planner (completion in s and × D, late, failed, completed runs), paired comparisons, then the supplementary sections | `make_tables.py` |
-| `table_short.md` | one compact table (completion × D and late per planner) | `make_tables.py` |
-| `key_findings.md` | sentences computed from the numbers | `make_tables.py` |
-| `headline.md` | the main result in a few sentences | `make_tables.py` |
-| `completion_time.png` | completion time by scenario and planner, one panel per workflow, with D marked | `make_plots.py` |
-| `failures.png` | late and failed transfers by scenario and planner | `make_plots.py` |
-| `tuning/tuning.json` | network tuning: the `data_scale` sweep and every stress check | `tune.py` |
-| `tuning/agent_tuning.json` | agent tuning: all 36 combinations and the choice | `tune_agents.py` |
-| `ablation/`, `competing/`, `maxmin/` | `summary.csv`, logs and manifests of each supplementary experiment | their scripts |
-| `llm/` | LLM-mode `summary.csv`, logs (with prompts and answers), manifests, `spend.json` | `run_llm.py` |
+**Where this fits.** These files are the evidence. Every number in the documents is computed from
+them by a program, never typed by hand.
 
-An example row of `summary.csv`:
+| File | What it contains | Made by |
+|---|---|---|
+| `summary.csv` | one line per main run: workflow, situation, seed, planner, mode, then the 11 measurements from section 5 | `run_experiments.py` |
+| `logs/<run name>.jsonl.gz` | the decision log of each main run | `run_experiments.py` |
+| `manifests/<run name>.json` | the settings file of each main run | `run_experiments.py` |
+| `table.md` | the full tables: average ± spread of each measurement for every workflow, situation and planner, the side-by-side comparisons on matching seeds, then the extra experiments | `make_tables.py` |
+| `table_short.md` | one small table: finish time (× D) and late files per planner | `make_tables.py` |
+| `key_findings.md` | the main conclusions, written by a program from the numbers | `make_tables.py` |
+| `headline.md` | the main result in a few sentences | `make_tables.py` |
+| `completion_time.png` | chart of finish times by situation and planner, one panel per workflow, deadline marked | `make_plots.py` |
+| `failures.png` | chart of late and failed files by situation and planner | `make_plots.py` |
+| `tuning/tuning.json` | how the size multipliers were chosen, and every check on the trouble situations | `tune.py` |
+| `tuning/agent_tuning.json` | all 36 agent-setting combinations and their scores | `tune_agents.py` |
+| `ablation/`, `competing/`, `maxmin/` | the results table, logs and settings files of each extra experiment | their scripts |
+| `llm/` | the LLM-mode results table, logs (with every question and answer), settings files, and `spend.json` (the running cost total) | `run_llm.py` |
+
+One line of `summary.csv`, as an example:
 
 ```
 workflow,scenario,seed,planner,mode,completed,completion_s,failed_attempts,failed_transfers,late,n_transfers,gb_moved,avg_gbps,data_wait_s,reroutes,decisions
 1000genome-8ch,normal,0,baseline,rule,True,587.2504561198218,0,0,0,179,3897.408928,53.09365211908532,12175.60568516018,0,1
 ```
 
-`make_tables.py` also writes the summary, results table and findings into this guide, the README and
-the write-up between `<!-- ...:START -->` and `<!-- ...:END -->` markers, and a test fails if any of
-them drifts from the files above. No number in those blocks is typed by hand.
+Read left to right: 1000Genome 8 chromosomes, normal situation, seed 0, the baseline, rule mode; it
+completed at 587.25 seconds with no failed attempts, no failed or late files, 179 files moving 3,897
+GB at an average of 53.1 Gbps; tasks waited 12,176 seconds for data in total; no route changes; one
+decision.
+
+`make_tables.py` also copies the summary, a results table and the conclusions into this guide, the
+README, the write-up and the plain-English guide, between `<!-- ...:START -->` and `<!-- ...:END -->`
+markers. A test fails if any of them disagrees with the files above.
 
 ---
 
@@ -793,8 +911,9 @@ them drifts from the files above. No number in those blocks is typed by hand.
 
 > **In plain words:** Times are shown as a fraction of the deadline D: 1.00 is exactly on time, below 1.00 is early, above 1.00 is late. Lower is better.
 
-Mean over 10 seeds; D is the workflow's deadline. Full tables with standard deviations, paired
-comparisons and the supplementary experiments are in [`results/table.md`](../results/table.md).
+**Where this fits.** This is what the experiment found. Each number is an average over 10 seeds. The
+full tables with spreads, the side-by-side comparisons and the extra experiments are in
+[`results/table.md`](../results/table.md).
 
 <!-- RESULTS:START -->
 Mean over 10 seeds: completion time as a fraction of the deadline D (late transfers per run). 1.00 means finished exactly on time; lower is better. Full tables: [`results/table.md`](results/table.md).
@@ -813,7 +932,7 @@ Mean over 10 seeds: completion time as a fraction of the deadline D (late transf
 
 ![Late and failed transfers](../results/failures.png)
 
-What the numbers say, generated from them:
+What the numbers say (written by a program from the results):
 
 <!-- FINDINGS:START -->
 When the StarLight-Caltech link fails, the baseline on 1000Genome 8ch takes 1.69 D, and 26.5 transfers per run time out at least once. Rerouting alone brings it to 0.96 D and the agents to 0.80 D, so rerouting covers 83% of the agents' gain. On Montage 0.1° the same three numbers are 1.09, 1.01 and 0.95 D, and rerouting covers 53%.
@@ -829,15 +948,16 @@ The agents lost on the smaller Montage 0.05° workflow used for tuning, in norma
 Rerouting has its own failure mode. On Montage 0.1° it sends every stuck transfer to the same backup route and still leaves 8.5 late transfers per run, where the agents, spreading and prioritizing, leave 0.0. Across all 120 paired comparisons on the result workflows, they were never slower.
 <!-- FINDINGS:END -->
 
-The supplementary experiments (details in `results/table.md`):
+The extra experiments, in short (details in `results/table.md`):
 
-- **LLM mode.** Claude made the same call as the rule coordinator in most decisions, found a slightly
-  better initial plan on a few 1000Genome seeds, and made no real difference on Montage. It still beat
-  both baselines on every seed.
+- **LLM mode.** Claude made the same choice as the rule-based coordinator in most decisions, found a
+  slightly better starting plan on a few 1000Genome seeds, and made no real difference on Montage. It
+  still beat both simple planners on every seed.
 - **Two workflows at once.** The agents were faster for both workflows on every seed and met both
-  deadlines far more often than the baselines, but the small, short-deadline Montage still suffered
-  most, because nothing in the agents handles fairness between workflows.
-- **Max-min fair sharing.** Every cell moved by less than 0.01 D and the planners kept the same order.
+  deadlines far more often than the simple planners. The small, short-deadline Montage still suffered
+  most, because nothing in the agents tries to be fair between workflows.
+- **Max-min fair sharing.** Every result moved by less than 0.01 D, and the planners finished in the
+  same order.
 
 ---
 
@@ -845,25 +965,28 @@ The supplementary experiments (details in `results/table.md`):
 
 > **In plain words:** Every simplification in the setup, why it matters, what was done to check or reduce its effect, and what is still open.
 
-| Limitation | Why it matters | What was done | What remains |
-|---|---|---|---|
-| The network is synthetic | Numbers are not measurements | Everything synthetic is labeled; all scenario times are fractions of D; the twin sits behind `TwinView` and the tools, the places real data would plug in | No real topology or telemetry |
-| Simple bandwidth sharing | Could favor one planner | All 180 runs repeated under max-min fair sharing; same picture | No TCP dynamics; both directions of a link share capacity |
-| File sizes are scaled | Real sizes barely load the network | `data_scale` chosen by a fixed rule, on the baseline only, before agents existed | Sizes are not real |
-| Random task placement | More cross-site traffic than a real scheduler | Placement is a seeded hash, identical for all planners, so comparisons are paired | No placement-aware scheduling |
-| Unlimited compute | Tasks never queue for CPUs | Stated plainly; runtimes are real | Compute contention not modeled |
-| Agents could cheat by reading the future | Would invalidate the comparison | Tools show only the present; forecasts copy the present only; tests check that a future failure does not change a forecast and that agent code imports nothing from the simulator, network model or configs | |
-| Tuning on the evaluation data | Inflates results | Separate tuning seeds and dev workflows; settings frozen before evaluation; tuning scripts and outputs committed | |
-| Forecasts assume nothing changes | Wrong for outages and surges that end | Rule coordinator needs a 5% forecast gain to leave the simple plan; event changes must beat "keep the plan" in a forecast | Forecasts still mislead sometimes (the dev Montage loss) |
-| Congestion misses Montage's traffic | One scenario says nothing for Montage | Tried moving the surge and raising it to the cap, per the rule; reported instead of made harsher | The cell is uninformative |
-| Agent advantage might just be rerouting | Would make the agents look better than they are | `baseline_reroute` ablation; `agents_static` ablation to split planning from reacting | |
-| Results might not reproduce | Makes claims unverifiable | Seeded RNG drawn up front, sha256 instead of `hash()`, no set-order dependence, no wall clock, fixed tie-breaking; every run replays exactly; fresh-clone reproduction checked; CI re-runs everything on Linux | Across CPU architectures one float differed in its 16th digit, so cross-platform checks use the replay tolerance |
-| LLM answers vary between runs | The API no longer accepts a temperature setting | Every prompt and answer is logged; LLM runs replay exactly without calling the API; a hard spending cap | One model, one prompt, no tool use by the model itself |
-| One workflow at a time | Real networks carry many | A two-workflow experiment | No fairness rules between workflows |
-| Small test set | Limits fine-grained claims | Paired comparisons and standard deviations reported for all cells | 10 seeds, 2 result workflows, one event per scenario |
+**Where this fits.** A result is only as good as the setup behind it. This table lists every known
+simplification, so readers can judge how far the conclusions reach.
 
-The build log (`docs/BUILD_LOG.md`) records every change from the original plan, with the reason and
-how to check it.
+| Limitation | Why it matters | What was done | What is still open |
+|---|---|---|---|
+| The network is invented | Its numbers are not measurements | Everything invented is labeled; the agents reach the network only through the tools, which is where a real network could plug in | Real network data |
+| Bandwidth sharing is simplified | It could favor one planner | All 180 runs repeated with "max-min fair" sharing; same conclusions | Real internet traffic behavior; both directions of a link share capacity |
+| File sizes are multiplied | At real sizes the network barely matters | Multipliers chosen by a fixed rule, with the baseline only, before the agents existed | Real file sizes |
+| Task locations are random | A real scheduler would place tasks more cleverly | The same placement is used for every planner, so comparisons stay fair | Smarter placement |
+| Unlimited computers | Tasks never wait for a free machine | Stated openly; task run times are real | Competition for computers |
+| The agents might peek at the future | That would make the comparison worthless | The tools only describe the present; forecasts copy only the present; tests prove a future event doesn't change a forecast and that the agents' code can't reach the simulator | |
+| Adjusting settings on the test data | It would inflate the results | Practice workflows and practice seeds kept separate; settings locked before the test; the adjustment scripts and their outputs are saved | |
+| Forecasts assume nothing changes | They are wrong whenever a jam or closure ends | The coordinator needs a clear forecast gain before abandoning the simple plan, and changes things after an event only if the forecast isn't worse | Forecasts still sometimes mislead (the practice Montage loss) |
+| The jam misses Montage's busy period | That situation tells us nothing about Montage | The jam was moved and made as heavy as the rules allowed, then left as it was and reported | That result is uninformative |
+| "Maybe it's just rerouting" | It would overstate the agents | Tested directly with the detour-only planner and the agents without reactions | |
+| Results might not repeat | Claims couldn't be checked | Random numbers drawn once from the seed; repeatable scrambling instead of the computer's own; no reliance on the clock or on unordered collections; fixed tie-breaking; every run replays exactly; a fresh copy of the project reproduces the results; an automatic service re-runs everything on a different kind of computer | On a different type of processor one number differed in its 16th digit, so cross-computer checks allow a one-in-a-billion tolerance |
+| The AI model answers differently each time | Its runs can't be recreated by asking again | Every question and answer is saved and replays exactly; a spending limit | One AI model, one way of asking, and the model can't ask the tools itself |
+| One workflow at a time | Real networks carry many | A two-workflow test | Fairness rules between many workflows |
+| Small test | Limits how fine the conclusions can be | Every comparison is on matching seeds, with the spread reported for every result | 10 seeds, 2 test workflows, one event per situation |
+
+Every change from the original plan is recorded, with its reason and how to check it, in
+`docs/BUILD_LOG.md`.
 
 ---
 
@@ -871,64 +994,73 @@ how to check it.
 
 > **In plain words:** How to run everything, what each automatic check verifies, and where to make changes to try something new.
 
-**Setup and the main pipeline**
+**Where this fits.** This is how anyone can reproduce the results, confirm that everything still
+works, or build on the project.
+
+**Setting up and running the main experiment** (needs Python 3.10 or newer):
 
 ```bash
-python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python scripts/run_experiments.py
-python scripts/replay.py --all
-python scripts/make_tables.py && python scripts/make_plots.py
-pytest -q
+python -m venv .venv && source .venv/bin/activate     # a private workspace for this project (Windows: .venv\Scripts\activate)
+pip install -r requirements.txt                       # the add-ons the project needs
+python scripts/run_experiments.py                     # the 180 runs
+python scripts/replay.py --all                        # replay them and check they match
+python scripts/make_tables.py && python scripts/make_plots.py   # tables, conclusions and charts
+pytest -q                                             # all automatic checks
 ```
 
-**Other scripts**
+**Other scripts:**
 
-| Script | Purpose |
+| Script | What it does |
 |---|---|
-| `fetch_data.py` | re-download the traces (they are already in `data/raw/`) |
-| `show_network.py` | free capacity per link at several moments of each scenario |
-| `tune.py`, `tune_agents.py` | re-run the tuning; `tune.py --write` writes the result into `configs/experiment.yaml` |
-| `run_ablation.py`, `run_competing.py`, `run_maxmin.py` | the supplementary experiments |
-| `run_llm.py` | LLM mode; needs `ANTHROPIC_API_KEY` in the environment or a gitignored `.env`, costs money |
-| `check_summary.py a.csv b.csv` | compare two summaries with the replay tolerance |
-| `trace_transfer.py --run <id> --transfer <id>` | follow one transfer through a recorded run |
-| `mcp_demo_client.py` | call every MCP tool over stdio |
+| `fetch_data.py` | downloads the workflow records again (they are already in `data/raw/`) |
+| `show_network.py` | prints each link's free capacity at several moments of each situation |
+| `tune.py`, `tune_agents.py` | repeat the setting adjustments; `tune.py --write` saves the result into `configs/experiment.yaml` |
+| `run_ablation.py`, `run_competing.py`, `run_maxmin.py` | the extra experiments |
+| `run_llm.py` | LLM mode; needs an Anthropic API key in the environment or in a `.env` file that git ignores; costs money |
+| `check_summary.py a.csv b.csv` | compares two results tables with the same tolerance replay uses |
+| `trace_transfer.py --run <run> --transfer <file>` | follows one file through a recorded run (section 14) |
+| `mcp_demo_client.py` | asks every tool question from a separate program |
 
-**Tests** (`pytest -q`, a few seconds):
+**The automatic checks** (`pytest -q`, a few seconds):
 
-| File | Checks |
+| Check file | What it confirms |
 |---|---|
-| `test_data.py` | the traces and license are present and parse |
-| `test_extract.py` | transfer counts, GB and deadlines for all four traces; placement and cross-process determinism |
-| `test_network.py` | units, routes, event timing, seeded background load, clipping |
-| `test_simulator.py` | units (10 GB on 100 Gbps in 0.8 s), failure path, timeouts, priority sharing, validation, forecasts unaffected by the future, max time, max-min sharing, cross-process determinism |
-| `test_planner.py` | every validation rule |
-| `test_tools.py` | each tool directly, in-process over MCP and over stdio; no-peeking |
-| `test_agents.py` | agents complete every scenario; agent code cannot import the simulator; frozen parameters; determinism |
-| `test_replay.py` | exact replay, byte-identical logs, tampered logs caught |
-| `test_competing.py` | two-workflow runs keep ids, deadlines and timeouts apart and replay |
-| `test_llm_mode.py` | LLM mode with a mocked API: choices applied, failures fall back, bad answers ignored, replay without the API |
-| `test_config.py` | the frozen config matches the tuning output |
-| `test_docs_consistency.py` | the numbers in the docs match `results/` |
+| `test_data.py` | the workflow records and their license are present and readable |
+| `test_extract.py` | the exact transfer counts, sizes and deadlines for all four workflows; repeatable placement across separate program runs |
+| `test_network.py` | unit conversions, routes, event timing, repeatable traffic, the 95% ceiling |
+| `test_simulator.py` | 10 GB on a free 100 Gbps link takes 0.8 seconds; failures and time limits; urgent files get twice the share; plan checks; forecasts unaffected by the future; the 20 × D limit; max-min sharing; identical results across separate program runs |
+| `test_planner.py` | every plan-check rule |
+| `test_tools.py` | every tool directly, through MCP inside the program, and from a separate program; no peeking |
+| `test_agents.py` | the agents finish every situation; their code cannot reach the simulator; locked settings; repeatable decisions |
+| `test_replay.py` | exact replay, identical log files, tampered logs caught |
+| `test_competing.py` | the two-workflow setup keeps names, deadlines and time limits apart, and replays |
+| `test_llm_mode.py` | LLM mode with a pretend AI service: choices applied, failures fall back, bad answers ignored, replay without the service |
+| `test_config.py` | the locked settings match the adjustment results |
+| `test_docs_consistency.py` | the numbers in the documents match `results/` |
 
-GitHub Actions runs the tests on every push and re-runs all 180 experiments on Linux.
+GitHub runs these checks on every update, and also re-runs all 180 experiments on a Linux computer.
 
-**Changing a scenario.** Edit `configs/scenarios.yaml` (for example `link: [FNAL, UCSD]`, or
-`end_frac: 0.4`) and run the pipeline. Because `experiment.yaml` is frozen for the reported results,
-this is a new experiment; keep the old results to compare. A brand-new scenario goes in
-`scenarios.yaml` and in the `scenarios:` list of `experiment.yaml`. One cell runs on its own with
-`python scripts/run_experiments.py --workflows montage-01d --scenarios link_failure --seeds 0 1 2`.
+**Trying a different situation.** Edit `configs/scenarios.yaml`, for example change which link fails
+(`link: [FNAL, UCSD]`) or when it comes back (`end_frac: 0.4`), and run the commands above. Because the
+settings were locked for the reported results, this is a new experiment, so keep the old results for
+comparison. A brand-new situation is added to `scenarios.yaml` and to the `scenarios:` list in
+`configs/experiment.yaml`. A single combination can be run on its own:
 
-**Adding a planner.** Subclass `Planner` in `att/planner.py`, implement `plan` and `on_event` using
-only the view (or the tools), register a name in `att/runner.py::make_planner`, and add it to
-`planners:` in `experiment.yaml`. The simulator validates and logs it like any other.
+```bash
+python scripts/run_experiments.py --workflows montage-01d --scenarios link_failure --seeds 0 1 2
+```
 
-**Adding a tool.** Write a function over a view in `att/tools.py` that returns JSON, then register a
-wrapper in `att/mcp_server.py::build_server`.
+**Adding a planner.** Write a new planner in the style of `att/baseline.py`. It needs two parts: one
+that makes the starting plan, and one that reacts to events. Give it a name in
+`att/runner.py::make_planner` and add that name to `planners:` in `configs/experiment.yaml`. The
+simulator checks and records its decisions like any other.
 
-**Plugging in a real network.** Replace the `Simulator` behind `TwinView` with something that reports
-real state, keeping the view's methods. The tools, the MCP server and the agents stay the same.
+**Adding a tool.** Write the question as a function in `att/tools.py` and register it in
+`att/mcp_server.py`.
+
+**Connecting a real network.** Replace the simulator behind the planners' view with something that
+reports a real network's state, keeping the same view. The tools, the server and the agents stay as
+they are.
 
 ---
 
@@ -936,74 +1068,77 @@ real state, keeping the view's methods. The tools, the MCP server and the agents
 
 > **In plain words:** One real file followed through one real run, from the recipe it comes from to the moment it arrives, and how each planner handled it.
 
-The file `chr3n-4001-5001.tar.gz` from the 1000Genome 8ch trace, in run
-`1000genome-8ch__link_failure__seed3__agents`. Every number below is printed by:
+**Where this fits.** This shows all the parts above working together on a single file. Every number
+here is printed by:
 
 ```bash
 python scripts/trace_transfer.py --run 1000genome-8ch__link_failure__seed3__agents --transfer chr3n-4001-5001.tar.gz@FNAL
 ```
 
-**Extraction.** Task `individuals_ID0000029` writes the file and, with seed 3, is placed at Caltech.
-The task that reads it, `individuals_merge_ID0000035`, is placed at FNAL, so the file has to travel:
-transfer `chr3n-4001-5001.tar.gz@FNAL`, Caltech to FNAL, about 0.003 GB after the ×100 scale. The
-merge task must start by 392.871 s for the workflow to meet D = 601.916 s, which makes that the
-transfer's deadline. Nothing can be sent until the producer, a 176.12 s task, finishes.
+The run: 1000Genome 8 chromosomes, link-failure situation, seed 3, agent team.
 
-**Initial plan.** The workflow agent finds this file's slack among the smallest and gives it
-priority 2. The coordinator forecasts its three drafts (load-balanced 473.7 s, fastest-route
-473.6 s, lowest-delay 536.4 s), keeps fastest-route, and routes the file Caltech → StarLight → FNAL.
+**1. Extraction (section 3).** The file `chr3n-4001-5001.tar.gz` is made by task
+`individuals_ID0000029`, which seed 3 places at **Caltech**. It is needed by task
+`individuals_merge_ID0000035`, placed at **FNAL**, so the file must travel from Caltech to FNAL. It is
+small, about 0.003 GB even after the ×100 size multiplier. The FNAL task must start by 392.871
+seconds for the workflow to meet its deadline of 601.916 seconds, so that is the file's deadline.
+Nothing can be sent until the task that makes it, which runs for 176.12 seconds, has finished.
 
-**The failure.** At t = 90.287 s (0.15 D) StarLight–Caltech goes down. The coordinator finds 25
-unfinished transfers using it, this one included although its data does not exist yet, and spreads
-them by projected load. This file moves to Caltech → UCSD → FNAL. The forecast with the change
-finishes at 480.0 s; without it the forecast never finishes, since a forecast keeps the link down for
-good. The change is applied.
+**2. The starting plan (section 6).** The workflow agent finds this file has little spare time and
+marks it urgent. The coordinator forecasts its three plans (load-balanced 473.7 s, fastest-route
+473.6 s, quickest-on-the-map 536.4 s), keeps the fastest-route plan, and sends this file
+Caltech → StarLight → FNAL.
 
-**Arrival.** The producer finishes at 256.200 s and the file arrives at 256.260 s, well before its
-deadline. The run completes at 480.002 s (0.797 D).
+**3. The link closes (sections 4 and 6).** At 90.287 seconds (15% of D) the StarLight–Caltech link
+closes. The coordinator finds 25 unfinished files whose routes use it, this one included even though
+its data doesn't exist yet, and spreads them over the remaining routes. This file moves to
+**Caltech → UCSD → FNAL**. With the change the forecast finishes at 480.0 seconds. Without it the
+forecast never finishes, because forecasts assume the link stays closed. So the change is made.
 
-Under the other planners:
+**4. Arrival (section 5).** The task that makes the file finishes at 256.200 seconds, and the file
+arrives at 256.260 seconds, more than two minutes before its deadline. The whole workflow finishes at
+480.002 seconds, 0.797 of D.
 
-| Planner | Route | Data ready | Arrived | On time? | Run finished |
+**The same file under the other planners:**
+
+| Planner | Route | File ready | Arrived | On time? | Whole workflow finished |
 |---|---|---|---|---|---|
-| baseline | Caltech → StarLight → FNAL (never changes) | 806.340 s | 806.393 s | **late** | 1031.615 s (1.714 D) |
-| baseline_reroute | moved to Caltech → UCSD → FNAL at the failure | 365.012 s | 365.072 s | on time | 590.284 s (0.981 D) |
-| agents | moved to Caltech → UCSD → FNAL at the failure, priority 2 | 256.200 s | 256.260 s | on time | 480.002 s (0.797 D) |
+| baseline | Caltech → StarLight → FNAL (never changed) | 806.340 s | 806.393 s | **late** | 1031.615 s (1.714 D) |
+| baseline with detours | moved to Caltech → UCSD → FNAL at the closure | 365.012 s | 365.072 s | on time | 590.284 s (0.981 D) |
+| agent team | moved to Caltech → UCSD → FNAL at the closure, marked urgent | 256.200 s | 256.260 s | on time | 480.002 s (0.797 D) |
 
-Under the baseline the file itself was never stuck. Its producer at Caltech was waiting for raw
-inputs from CERN that were queued behind the dead link, and the delay reached the file through that
-chain of dependencies.
+Under the baseline the file itself was never stuck. The task that makes it was waiting for raw data
+from CERN, and that data was stuck behind the closed link. The delay reached this file through the
+chain of tasks, which is how one closure holds up so much of a workflow.
 
-The link-down decision is one line in the run's log, with the 25 affected transfers, both forecasts,
-every tool call and the reason. `python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents`
-re-runs it from that log alone and prints `REPLAY OK`.
+**5. The record and replay (section 8).** The closure decision is one entry in the run's log, listing
+the 25 affected files, both forecasts, every question asked and the reason.
+`python scripts/replay.py --run 1000genome-8ch__link_failure__seed3__agents` rebuilds the run from
+that log alone and prints `REPLAY OK`.
 
 ---
 
 ## 15. Glossary
 
-> **In plain words:** Short definitions of the terms used in this document. The [plain-English guide](PLAIN_ENGLISH.md) has a longer, non-technical glossary.
+> **In plain words:** Short definitions of the terms used in this document. The [plain-English guide](PLAIN_ENGLISH.md) has a longer, non-technical glossary, and section 1.8 has a table of the key terms.
 
-- **Bandwidth vs. latency.** Bandwidth is how much data per second a link carries; latency (delay) is
-  how long a bit takes to cross it. Large files depend on bandwidth, small messages on latency.
-- **Gbps.** 10⁹ bits per second. File sizes are in bytes, so 100 Gbps = 12.5 GB/s; a test guards
-  against the factor-of-8 mix-up.
-- **DAG.** Directed acyclic graph: tasks joined by "must finish before" edges, with no cycles.
-- **Critical path.** The longest chain of dependent tasks; the workflow cannot finish sooner even with
-  an infinitely fast network.
-- **Slack.** How long something can slip without missing its deadline. For a transfer: deadline minus
-  earliest possible arrival.
-- **Deadline D.** The synthetic workflow deadline, 1.5 × the critical path. Results are often given
-  as × D.
-- **MCP (Model Context Protocol).** A standard protocol for clients, including AI agents, to discover
-  and call tools on a server.
-- **Digital twin.** A software model of a system used for what-if runs; here, the simulated network
-  plus the workflow's tasks.
-- **Persistence forecast.** A forecast that assumes the present continues: capacities stay, down links
-  stay down, nothing new happens.
-- **Ablation.** A variant with one ingredient added or removed, to measure that ingredient.
-- **Seed.** The starting number of a random number generator; the same seed gives the same run.
-- **Paired comparison.** Comparing two planners on the same seed (same placement, noise and events)
-  and counting wins, which takes luck out of the comparison.
-- **Replay.** Re-running a recorded run from its log, without the original planner, and checking the
-  result is identical.
+- **Bandwidth vs. latency.** Bandwidth is how much data per second a link carries (lanes on a road);
+  latency, or delay, is how long one bit takes to cross it (driving time). Large files depend on
+  bandwidth, tiny messages on latency.
+- **Gbps.** Billions of bits per second. File sizes are in bytes (8 bits each), so 100 Gbps moves
+  12.5 gigabytes per second; a test guards against mixing the two up.
+- **Critical path.** The longest chain of tasks that must happen one after another; the workflow
+  can't finish faster than this.
+- **Slack.** Spare time: how much later something could happen without missing its deadline.
+- **Deadline D.** 1.5 × the critical path. Results are often written as a multiple of D.
+- **MCP (Model Context Protocol).** An open standard for AI programs to find and use tools.
+- **Server / client.** The program that offers the tools / the program that asks them questions.
+- **Digital twin.** A software copy of a real system used to try things out safely.
+- **Forecast.** A prediction that assumes current conditions continue unchanged.
+- **Ablation.** A test version with one ingredient added or removed, to measure what it is worth.
+- **Seed.** The starting number for the computer's random choices; the same seed gives the same run.
+- **Paired comparison.** Comparing two planners on the same seed and counting wins, so luck plays no
+  part.
+- **Replay.** Re-running a recorded run from its log and checking that every result matches.
+- **Fingerprint (sha256).** A short code computed from a file's contents; any change to the file
+  changes the code.
