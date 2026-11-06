@@ -1,0 +1,1226 @@
+{
+ "dev_workflows": [
+  "1000genome-2ch",
+  "montage-005d"
+ ],
+ "seeds": [
+  100,
+  101,
+  102,
+  103,
+  104
+ ],
+ "grid": {
+  "priority_fraction": [
+   0.1,
+   0.2,
+   0.3,
+   0.5
+  ],
+  "move_margin": [
+   0.0,
+   0.1,
+   0.25
+  ],
+  "draft_margin": [
+   0.0,
+   0.05,
+   0.1
+  ]
+ },
+ "chosen": {
+  "priority_fraction": 0.3,
+  "move_margin": 0.1,
+  "draft_margin": 0.05
+ },
+ "rows": [
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.0,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.925095076861877,
+   "mean_late_frac": 0.05632438716436736,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8303942865392026,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8285843600057617,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8284430939347531,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9970234716484754,
+     "late_frac": 0.06422882672882672
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.971671140192942,
+     "late_frac": 0.04755244755244755
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0944541088501272,
+     "late_frac": 0.22616504870492987
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.0,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9243450388924291,
+   "mean_late_frac": 0.0531481868658649,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8303942865392026,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8285843600057617,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8284430939347531,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.977509360201069,
+     "late_frac": 0.03345959595959596
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9806073852891956,
+     "late_frac": 0.05926447653066358
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.1005317473845926,
+     "late_frac": 0.22616504870492987
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.0,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9483103297169877,
+   "mean_late_frac": 0.05175929797697601,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8813406104989907,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8786464205183491,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8774349266559266,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9646073743721783,
+     "late_frac": 0.01818181818181818
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9816264529374014,
+     "late_frac": 0.05926447653066358
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.1062061933190805,
+     "late_frac": 0.2331094931493743
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.1,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.920983993609685,
+   "mean_late_frac": 0.05209378252608885,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8303942865392026,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8285953370697868,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8284430939347531,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9970234716484754,
+     "late_frac": 0.06422882672882672
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9763328388544812,
+     "late_frac": 0.044755244755244755
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0651149336114112,
+     "late_frac": 0.20357862367246166
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.1,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9195191044073131,
+   "mean_late_frac": 0.051282124160473654,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8303942865392026,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8285953370697868,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8284430939347531,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.977509360201069,
+     "late_frac": 0.03345959595959596
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9772228920893351,
+     "late_frac": 0.05926447653066358
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0749496566097316,
+     "late_frac": 0.2149686724725824
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.1,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9420851627877825,
+   "mean_late_frac": 0.05081916119751068,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8813406104989907,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.878657397582374,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8774349266559266,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9646073743721783,
+     "late_frac": 0.01818181818181818
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9724622735946136,
+     "late_frac": 0.05926447653066358
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.078008394022612,
+     "late_frac": 0.22746867247258237
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.25,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9244590781787796,
+   "mean_late_frac": 0.056990355116332596,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8303942865392026,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8285953370697868,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8284430939347531,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9970234716484754,
+     "late_frac": 0.06422882672882672
+    },
+    "montage-005d/congestion": {
+     "completion_D": 1.0008587387140864,
+     "late_frac": 0.07776827489057705
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0614395411663737,
+     "late_frac": 0.1999450290785918
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.25,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9195357844748925,
+   "mean_late_frac": 0.049011283827908786,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8303942865392026,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8285953370697868,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8284430939347531,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.977509360201069,
+     "late_frac": 0.03345959595959596
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9796395166975247,
+     "late_frac": 0.053509080847210344
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0726331124070188,
+     "late_frac": 0.2070990261606464
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.1,
+   "move_margin": 0.25,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9410141967014369,
+   "mean_late_frac": 0.046002024568649526,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8813406104989907,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.878657397582374,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8774349266559266,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9646073743721783,
+     "late_frac": 0.01818181818181818
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9701500516356025,
+     "late_frac": 0.053509080847210344
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0738948194635498,
+     "late_frac": 0.20432124838286864
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.0,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9218729685945845,
+   "mean_late_frac": 0.05279027195459268,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942655175969,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8227159310498585,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.825607398956732,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9947825074882992,
+     "late_frac": 0.0629592829233117
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9720785017544102,
+     "late_frac": 0.03636363636363636
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0929592068006098,
+     "late_frac": 0.217418712440608
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.0,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9191114576756124,
+   "mean_late_frac": 0.047962246263257624,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942655175969,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8227159310498585,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.825607398956732,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9747008654944921,
+     "late_frac": 0.022319347319347323
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9802953972848412,
+     "late_frac": 0.04947426674045379
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0882548877501532,
+     "late_frac": 0.21597986351974466
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.0,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9318643839973597,
+   "mean_late_frac": 0.0481937277447391,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8513627416015812,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8509784589544995,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8511287088057788,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9607142051893571,
+     "late_frac": 0.013986013986013988
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9855608838564598,
+     "late_frac": 0.04947426674045379
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0914413055764816,
+     "late_frac": 0.22570208574196687
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.1,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9190112937590412,
+   "mean_late_frac": 0.050426718353029476,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942655175969,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8232021228076842,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.825607398956732,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9947825074882992,
+     "late_frac": 0.0629592829233117
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.978957833047555,
+     "late_frac": 0.03636363636363636
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.06842363473638,
+     "late_frac": 0.20323739083122883
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.1,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9161833111727183,
+   "mean_late_frac": 0.04656463319598029,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942655175969,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8232021228076842,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.825607398956732,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9747008654944921,
+     "late_frac": 0.022319347319347323
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9817902209778572,
+     "late_frac": 0.04947426674045379
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.068704993281948,
+     "late_frac": 0.20759418511608066
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.1,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.927890773430016,
+   "mean_late_frac": 0.04818500356635066,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8513627416015812,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8514646507123252,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8511287088057788,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9607142051893571,
+     "late_frac": 0.013986013986013988
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.977932087403315,
+     "late_frac": 0.04947426674045379
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0747422468677386,
+     "late_frac": 0.22564974067163618
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.25,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9242273707957603,
+   "mean_late_frac": 0.05460643808860888,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942655175969,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8232060810397641,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.825607398956732,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9947825074882992,
+     "late_frac": 0.0629592829233117
+    },
+    "montage-005d/congestion": {
+     "completion_D": 1.0057932377261112,
+     "late_frac": 0.0705337827639986
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0728807340460584,
+     "late_frac": 0.19414556284434298
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.25,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9171655125090474,
+   "mean_late_frac": 0.04432319615069067,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942655175969,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8232060810397641,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.825607398956732,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9747008654944921,
+     "late_frac": 0.022319347319347323
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9838074349492384,
+     "late_frac": 0.04371887105700055
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0725770290964607,
+     "late_frac": 0.19990095852779619
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.2,
+   "move_margin": 0.25,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9277537897044165,
+   "mean_late_frac": 0.04339727022476475,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8513627416015812,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8514646507123252,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8511287088057788,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9607142051893571,
+     "late_frac": 0.013986013986013988
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9768967961266742,
+     "late_frac": 0.04371887105700055
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0749556357907821,
+     "late_frac": 0.20267873630557398
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.0,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9199191110490258,
+   "mean_late_frac": 0.048389158812472334,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230758918442197,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8235147377374815,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8264532563068585,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9815655168174249,
+     "late_frac": 0.032167832167832165
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9762252333654201,
+     "late_frac": 0.03496503496503496
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0886800302227506,
+     "late_frac": 0.2232020857419669
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.0,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9173585287315129,
+   "mean_late_frac": 0.04563891145790844,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230758918442197,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8235147377374815,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8264532563068585,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9663071159153516,
+     "late_frac": 0.006993006993006994
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9791200231467343,
+     "late_frac": 0.042199527091613426
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0856801474384323,
+     "late_frac": 0.2246409346628302
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.0,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9294294062898621,
+   "mean_late_frac": 0.045870392939389916,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.851362265845807,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.851792070844043,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8518351100916591,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9553261701730932,
+     "late_frac": 0.006993006993006994
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9834888599967087,
+     "late_frac": 0.042199527091613426
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.082771960787862,
+     "late_frac": 0.22602982355171908
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.1,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9167769606261912,
+   "mean_late_frac": 0.044883510913643336,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230758918442197,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242354951629206,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8264532563068585,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9815655168174249,
+     "late_frac": 0.032167832167832165
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.98162282572645,
+     "late_frac": 0.03636363636363636
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.063708777899274,
+     "late_frac": 0.20076959695039145
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.1,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9135688785011937,
+   "mean_late_frac": 0.04261287986603387,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230758918442197,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242354951629206,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8264532563068585,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9663071159153516,
+     "late_frac": 0.006993006993006994
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9774596749788993,
+     "late_frac": 0.04359812849021482
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0638818367989125,
+     "late_frac": 0.2050861437129814
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.1,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9254737690260247,
+   "mean_late_frac": 0.04562213912529312,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.851362265845807,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.852512828269482,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8518351100916591,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9553261701730932,
+     "late_frac": 0.006993006993006994
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9736516351606783,
+     "late_frac": 0.04359812849021482
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0681546046154282,
+     "late_frac": 0.22314169926853694
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.25,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9215227442030282,
+   "mean_late_frac": 0.04811670912585833,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230758918442197,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242354951629206,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8264532563068585,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9815655168174249,
+     "late_frac": 0.032167832167832165
+    },
+    "montage-005d/congestion": {
+     "completion_D": 1.0006539594142434,
+     "late_frac": 0.059103486441615935
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.073152345672502,
+     "late_frac": 0.19742893614570187
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.25,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9150044660760915,
+   "mean_late_frac": 0.040144345757811506,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230758918442197,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242354951629206,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8264532563068585,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9663071159153516,
+     "late_frac": 0.006993006993006994
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9792118999405519,
+     "late_frac": 0.033566433566433566
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0707431372866467,
+     "late_frac": 0.20030663398742848
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.3,
+   "move_margin": 0.25,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.926230778381981,
+   "mean_late_frac": 0.040838790202255955,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.851362265845807,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.852512828269482,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8518351100916591,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9553261701730932,
+     "late_frac": 0.006993006993006994
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9725412510241005,
+     "late_frac": 0.033566433566433566
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0738070448877441,
+     "late_frac": 0.20447330065409516
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.0,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9223311851563244,
+   "mean_late_frac": 0.05493711702709722,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942548307401,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8235293890400472,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.826453516183894,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9853684619751721,
+     "late_frac": 0.05034965034965035
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9800202568834736,
+     "late_frac": 0.04755244755244755
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0955212320246193,
+     "late_frac": 0.2317206042604854
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.0,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9202970992369952,
+   "mean_late_frac": 0.050635663085355505,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942548307401,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8235293890400472,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.826453516183894,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9697680758445166,
+     "late_frac": 0.02097902097902098
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9820680689283927,
+     "late_frac": 0.048236655430900034
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0968692905943807,
+     "late_frac": 0.23459830210221205
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.0,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9323688469844598,
+   "mean_late_frac": 0.05109862604831847,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8513627309147245,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8517919169446883,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8518349319473824,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9599457501504329,
+     "late_frac": 0.02097902097902098
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9791551942701547,
+     "late_frac": 0.048236655430900034
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.1001225576793754,
+     "late_frac": 0.23737607987998982
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.1,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9208792941703307,
+   "mean_late_frac": 0.05278301881315123,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942548307401,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242501440357527,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.826453516183894,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9853684619751721,
+     "late_frac": 0.05034965034965035
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9894436417451586,
+     "late_frac": 0.043356643356643354
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0766657462512665,
+     "late_frac": 0.22299181917261368
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.1,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.9176594428614884,
+   "mean_late_frac": 0.05037319841771933,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942548307401,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242501440357527,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.826453516183894,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9697680758445166,
+     "late_frac": 0.02097902097902098
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9849065747989176,
+     "late_frac": 0.05107410575036475
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0774840914751096,
+     "late_frac": 0.23018606377693024
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.1,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9279016880482921,
+   "mean_late_frac": 0.049678753973274876,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8513627309147245,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8525126719403939,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8518349319473824,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9599457501504329,
+     "late_frac": 0.02097902097902098
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9786202145990541,
+     "late_frac": 0.05107410575036475
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0731338287377652,
+     "late_frac": 0.22601939711026353
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.25,
+   "draft_margin": 0.0,
+   "mean_completion_D": 0.9246053823128704,
+   "mean_late_frac": 0.0542256909988377,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942548307401,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242541022678328,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.826453516183894,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9853684619751721,
+     "late_frac": 0.05034965034965035
+    },
+    "montage-005d/congestion": {
+     "completion_D": 1.0151835975266223,
+     "late_frac": 0.06625748352367059
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0732783610929613,
+     "late_frac": 0.20874701211970526
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.25,
+   "draft_margin": 0.05,
+   "mean_completion_D": 0.918453291454623,
+   "mean_late_frac": 0.04320960875973388,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8230942548307401,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8242541022678328,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.826453516183894,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9697680758445166,
+     "late_frac": 0.02097902097902098
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9884060093823281,
+     "late_frac": 0.028092770538813705
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0787437902184256,
+     "late_frac": 0.2101858610405686
+    }
+   }
+  },
+  {
+   "priority_fraction": 0.5,
+   "move_margin": 0.25,
+   "draft_margin": 0.1,
+   "mean_completion_D": 0.9291593992384088,
+   "mean_late_frac": 0.04344109024121536,
+   "per_case": {
+    "1000genome-2ch/normal": {
+     "completion_D": 0.8513627309147245,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/congestion": {
+     "completion_D": 0.8525126719403939,
+     "late_frac": 0.0
+    },
+    "1000genome-2ch/link_failure": {
+     "completion_D": 0.8518349319473824,
+     "late_frac": 0.0
+    },
+    "montage-005d/normal": {
+     "completion_D": 0.9599457501504329,
+     "late_frac": 0.02097902097902098
+    },
+    "montage-005d/congestion": {
+     "completion_D": 0.9787448399047953,
+     "late_frac": 0.028092770538813705
+    },
+    "montage-005d/link_failure": {
+     "completion_D": 1.0805554705727238,
+     "late_frac": 0.2115747499294575
+    }
+   }
+  }
+ ]
+}

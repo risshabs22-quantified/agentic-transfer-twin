@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import hashlib
+from dataclasses import asdict
+from typing import Any
+
+from att import config
+from att.extract import extract_transfers, merge_workflows
+from att.network import Background, Link, Topology, parse_event
+from att.planner import Planner
+from att.simulator import Simulator
+
+
+def run_id(workflow: str, scenario: str, seed: int, planner: str, mode: str = "rule") -> str:
+    rid = f"{workflow}__{scenario}__seed{seed}__{planner}"
+    return rid if mode == "rule" else f"{rid}__{mode}"
+
+
+def _sha256(path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def run_settings(exp: dict[str, Any], workflow: str, scenario: str, seed: int, planner: str = "baseline",
+                 data_scale: float | None = None) -> dict[str, Any]:
+    wf = exp["workflows"][workflow]
+    scale = data_scale if data_scale is not None else wf["data_scale"]
+    if scale is None:
+        raise ValueError(f"data_scale for {workflow} is not set (run scripts/tune.py)")
+    topo = config.topology()
+    bg, _ = config.scenarios()
+    events = config.scenario_events(exp, workflow, scenario)
+    path = config.workflow_path(exp, workflow)
+    return {
+        "workflow": workflow,
+        "workflow_file": wf["file"],
+        "workflow_sha256": _sha256(path),
+        "scenario": scenario,
+        "seed": seed,
+        "planner": planner,
+        "mode": "rule",
+        "planner_params": dict(exp["agents"]) if planner in ("agents", "agents_static") else {},
+        "sites": list(exp["sites"]),
+        "source_site": exp["source_site"],
+        "slack": exp["slack"],
+        "data_scale": scale,
+        "simulator": dict(exp["simulator"]),
+        "background": asdict(bg),
+        "events": [{"type": e.type, "link": list(e.link), "start_frac": e.start_frac, "end_frac": e.end_frac,
+                    **({"extra_load": e.extra_load} if e.type == "surge" else {})} for e in events],
+        "topology": {"sites": topo.sites,
+                     "links": [{"a": ln.a, "b": ln.b, "gbps": ln.gbps, "ms": ln.ms} for ln in topo.links]},
+    }
+
+
+COMPETING = "competing_workflows"
+
+
+def competing_settings(exp: dict[str, Any], seed: int, planner: str = "baseline") -> dict[str, Any]:
+    members = [w for w, v in exp["workflows"].items() if v["role"] == "result"]
+    base = run_settings(exp, members[0], "normal", seed, planner=planner)
+    base.update({
+        "workflow": "both", "scenario": COMPETING, "events": [],
+        "members": [{"workflow": w, "workflow_file": exp["workflows"][w]["file"],
+                     "workflow_sha256": _sha256(config.workflow_path(exp, w)),
+                     "data_scale": exp["workflows"][w]["data_scale"]} for w in members],
+    })
+    for k in ("workflow_file", "workflow_sha256", "data_scale"):
+        base.pop(k)
+    return base
+
+
+def _extract(s: dict[str, Any], workflow_file: str, sha: str, data_scale: float) -> dict[str, Any]:
+    path = config.ROOT / workflow_file
+    if _sha256(path) != sha:
+        raise ValueError(f"{workflow_file} has changed since this run was recorded")
+    return extract_transfers(path, s["sites"], s["source_site"], s["slack"], seed=s["seed"], data_scale=data_scale)
+
+
+def sim_from_settings(s: dict[str, Any]) -> Simulator:
+    if "members" in s:
+        ex = merge_workflows([(m["workflow"], _extract(s, m["workflow_file"], m["workflow_sha256"], m["data_scale"]))
+                              for m in s["members"]])
+    else:
+        ex = _extract(s, s["workflow_file"], s["workflow_sha256"], s["data_scale"])
+    topo = Topology(sites=list(s["topology"]["sites"]),
+                    links=[Link(x["a"], x["b"], float(x["gbps"]), float(x["ms"])) for x in s["topology"]["links"]])
+    events = [parse_event(e) for e in s["events"]]
+    sim_cfg = s["simulator"]
+    return Simulator(ex, topo, Background(**s["background"]), events, s["seed"],
+                     steps_per_deadline=sim_cfg["steps_per_deadline"], max_time_frac=sim_cfg["max_time_frac"],
+                     timeout_frac=sim_cfg["timeout_frac"], sharing=sim_cfg.get("sharing", "proportional"))
+
+
+def build_sim(exp: dict[str, Any], workflow: str, scenario: str, seed: int,
+              data_scale: float | None = None) -> Simulator:
+    return sim_from_settings(run_settings(exp, workflow, scenario, seed, data_scale=data_scale))
+
+
+def make_planner(name: str, exp: dict[str, Any] | None = None, params: dict[str, Any] | None = None,
+                 mode: str = "rule") -> Planner:
+    from att.agents import AgentTeam
+    from att.baseline import Baseline, BaselineReroute
+    if name == "baseline":
+        return Baseline()
+    if name == "baseline_reroute":
+        return BaselineReroute()
+    if name in ("agents", "agents_static"):
+        return AgentTeam(**(params if params is not None else exp["agents"]), react=(name == "agents"))
+    raise ValueError(f"unknown planner {name!r}")
+
+
+def run_one(exp: dict[str, Any], workflow: str, scenario: str, seed: int, planner: Planner,
+            data_scale: float | None = None) -> tuple[dict[str, Any], Simulator]:
+    sim = build_sim(exp, workflow, scenario, seed, data_scale)
+    return sim.run(planner), sim
