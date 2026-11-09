@@ -1,7 +1,7 @@
 # agentic-transfer-twin
 
 A small prototype for the SciNet project. Three software agents plan the file transfers of real
-scientific workflows over a simulated network, and I compare their plans with simple fixed rules.
+scientific workflows over a simulated network.
 
 ## The plan
 
